@@ -1503,7 +1503,6 @@ dependencies = [
  "lw-domain",
  "lw-storage",
  "serde_json",
- "sqlx",
  "stellar-rpc-client",
  "stellar-strkey 0.0.16",
  "stellar-xdr 27.0.0",
