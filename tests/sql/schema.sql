@@ -1,7 +1,7 @@
--- Vendored test schema for lend_worker repository round-trip tests.
+-- Vendored test schema for lend_worker_stellar repository round-trip tests.
 --
 -- This is a TRIMMED, up-only copy of the subset of the lend-api migrations
--- that lend_worker's repositories actually touch (the `operations`,
+-- that lend_worker_stellar's repositories actually touch (the `operations`,
 -- `activity`, `dex_orders`, `fiat_holdings` tables, their enums, and the
 -- `updated_at` trigger). It is intentionally self-contained so the worker's
 -- tests need no access to the lend-api repo.
