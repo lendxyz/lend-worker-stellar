@@ -1,0 +1,19 @@
+---
+source: tests/golden.rs
+expression: out
+---
+[
+  {
+    "op_id": "00000000-0000-0000-0000-000000000007",
+    "factory_op_id": 7,
+    "event_hash": "deadbeef#0#lend_op_paused",
+    "chain_id": 0,
+    "event_type": "op_paused",
+    "user_address": null,
+    "block_number": 12345,
+    "data": {
+      "tx_hash": "deadbeef#0"
+    },
+    "created_at": "2023-11-14T22:13:20Z"
+  }
+]

@@ -1,0 +1,40 @@
+---
+source: tests/golden.rs
+expression: out
+---
+[
+  {
+    "op_id": "00000000-0000-0000-0000-000000000007",
+    "factory_op_id": 7,
+    "event_hash": "deadbeef#0#lend_oplend_transferred_from",
+    "chain_id": 0,
+    "event_type": "op_lend_transfered",
+    "user_address": "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI",
+    "block_number": 12345,
+    "data": {
+      "amount": "99",
+      "from": "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI",
+      "to": "GADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOZPI",
+      "tx_hash": "deadbeef#0",
+      "user_is_sender": true
+    },
+    "created_at": "2023-11-14T22:13:20Z"
+  },
+  {
+    "op_id": "00000000-0000-0000-0000-000000000007",
+    "factory_op_id": 7,
+    "event_hash": "deadbeef#0#lend_oplend_transferred_to",
+    "chain_id": 0,
+    "event_type": "op_lend_transfered",
+    "user_address": "GADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOZPI",
+    "block_number": 12345,
+    "data": {
+      "amount": "99",
+      "from": "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI",
+      "to": "GADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOZPI",
+      "tx_hash": "deadbeef#0",
+      "user_is_sender": false
+    },
+    "created_at": "2023-11-14T22:13:20Z"
+  }
+]

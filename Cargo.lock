@@ -1419,6 +1419,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "sqlx",
+ "stellar-xdr 27.0.0",
  "tokio",
  "uuid",
 ]
