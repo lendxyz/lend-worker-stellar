@@ -1,7 +1,7 @@
 services:
   test-db:
     image: postgres:16-alpine
-    container_name: lw-test-pg
+    container_name: lw-stellar-test-pg
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: lend_test
