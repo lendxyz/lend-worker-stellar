@@ -6,16 +6,23 @@ mod common;
 
 use uuid::Uuid;
 
-use lend_worker_stellar::models::activity_model::{ActivityBuilder, ActivityEventType};
-use lend_worker_stellar::repositories::activity_repository::{ActivityStore, PgActivityStore};
+use lend_worker_stellar::models::activity_model::{
+    ActivityBuilder, ActivityEventType,
+};
+use lend_worker_stellar::repositories::activity_repository::{
+    ActivityStore, PgActivityStore,
+};
 use lend_worker_stellar::repositories::helpers::Database;
-use lend_worker_stellar::repositories::op_repository::{OperationStore, PgOperationStore};
+use lend_worker_stellar::repositories::op_repository::{
+    OperationStore, PgOperationStore,
+};
 
 use serde_json::json;
 
 const SCHEMA: &str = include_str!("sql/schema.sql");
 const FOP: i32 = 7;
-const OP_TOKEN: &str = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+const OP_TOKEN: &str =
+    "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
 
 fn test_db_url() -> Option<String> {
     match std::env::var("TEST_DATABASE_URL") {
@@ -47,7 +54,9 @@ async fn setup(db: &Database, op_id: Uuid) {
 #[tokio::test]
 async fn activity_round_trip_uses_chain_id_zero() {
     let Some(url) = test_db_url() else {
-        eprintln!("TEST_DATABASE_URL unset — skipping repository_db round-trip");
+        eprintln!(
+            "TEST_DATABASE_URL unset — skipping repository_db round-trip"
+        );
         return;
     };
     let _guard = common::db_serial().lock().await;
@@ -71,14 +80,22 @@ async fn activity_round_trip_uses_chain_id_zero() {
 
     // get_factory_latest_block binds chain_id = 0 (the Stellar sentinel); it must
     // see the ledger sequence we just wrote.
-    let latest = store.get_factory_latest_block().await.expect("latest block");
-    assert_eq!(latest, 12_345, "factory latest block should be the ledger seq");
+    let latest = store
+        .get_factory_latest_block()
+        .await
+        .expect("latest block");
+    assert_eq!(
+        latest, 12_345,
+        "factory latest block should be the ledger seq"
+    );
 }
 
 #[tokio::test]
 async fn operation_total_shares_seeds_deserializable_supported_chains() {
     let Some(url) = test_db_url() else {
-        eprintln!("TEST_DATABASE_URL unset — skipping repository_db supported_chains");
+        eprintln!(
+            "TEST_DATABASE_URL unset — skipping repository_db supported_chains"
+        );
         return;
     };
     let _guard = common::db_serial().lock().await;
@@ -102,7 +119,10 @@ async fn operation_total_shares_seeds_deserializable_supported_chains() {
     // get_all must deserialize supported_chains (incl. lz_endpoint_id=0) — this
     // is the round-trip that the SupportedChains struct/JSON must agree on.
     let all = ops.get_all().await.expect("get_all");
-    let op = all.iter().find(|o| o.id == op_id).expect("operation present");
+    let op = all
+        .iter()
+        .find(|o| o.id == op_id)
+        .expect("operation present");
     assert_eq!(op.total_shares.as_deref(), Some("1000000"));
     assert_eq!(op.supported_chains.0.len(), 1);
     let sc = &op.supported_chains.0[0];

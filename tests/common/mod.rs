@@ -16,7 +16,9 @@ use uuid::Uuid;
 use stellar_xdr::{Int128Parts, ScAddress, ScMap, ScMapEntry, ScSymbol, ScVal};
 
 use lend_worker_stellar::chain::event_source::RawSorobanEvent;
-use lend_worker_stellar::models::activity_model::{Activity, ActivityEventType};
+use lend_worker_stellar::models::activity_model::{
+    Activity, ActivityEventType,
+};
 use lend_worker_stellar::models::fiat_holdings::FiatHolding;
 use lend_worker_stellar::models::op_model::Operation;
 use lend_worker_stellar::repositories::activity_repository::{
@@ -43,7 +45,8 @@ pub fn fixed_ts() -> DateTime<Utc> {
 /// Process-wide serial guard for DB tests: they share one schema and each
 /// re-applies it (DROP/CREATE), so they must not run concurrently.
 pub fn db_serial() -> &'static tokio::sync::Mutex<()> {
-    static L: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    static L: std::sync::OnceLock<tokio::sync::Mutex<()>> =
+        std::sync::OnceLock::new();
     L.get_or_init(|| tokio::sync::Mutex::new(()))
 }
 
@@ -58,7 +61,10 @@ pub fn u32v(n: u32) -> ScVal {
 }
 
 pub fn i128v(n: i128) -> ScVal {
-    ScVal::I128(Int128Parts { hi: (n >> 64) as i64, lo: n as u64 })
+    ScVal::I128(Int128Parts {
+        hi: (n >> 64) as i64,
+        lo: n as u64,
+    })
 }
 
 pub fn addr(strkey: &str) -> ScVal {
@@ -69,13 +75,20 @@ pub fn addr(strkey: &str) -> ScVal {
 pub fn data_map(pairs: &[(&str, ScVal)]) -> ScVal {
     let entries: Vec<ScMapEntry> = pairs
         .iter()
-        .map(|(k, v)| ScMapEntry { key: sym(k), val: v.clone() })
+        .map(|(k, v)| ScMapEntry {
+            key: sym(k),
+            val: v.clone(),
+        })
         .collect();
     ScVal::Map(Some(ScMap(entries.try_into().unwrap())))
 }
 
 /// Assemble a `RawSorobanEvent` with a fixed ledger/timestamp/tx for snapshots.
-pub fn raw_event(topics: Vec<ScVal>, value: ScVal, contract_id: &str) -> RawSorobanEvent {
+pub fn raw_event(
+    topics: Vec<ScVal>,
+    value: ScVal,
+    contract_id: &str,
+) -> RawSorobanEvent {
     RawSorobanEvent {
         tx_hash: "deadbeef".into(),
         event_index: 0,
@@ -152,15 +165,25 @@ pub struct FakeActivityStore {
 
 #[async_trait]
 impl ActivityStore for FakeActivityStore {
-    async fn insert(&self, activity: &Activity) -> Result<PgQueryResult, Error> {
+    async fn insert(
+        &self,
+        activity: &Activity,
+    ) -> Result<PgQueryResult, Error> {
         self.inserted.lock().unwrap().push(activity.clone());
         Ok(PgQueryResult::default())
     }
-    async fn insert_many(&self, activities: &[Activity]) -> Result<PgQueryResult, Error> {
+    async fn insert_many(
+        &self,
+        activities: &[Activity],
+    ) -> Result<PgQueryResult, Error> {
         self.inserted.lock().unwrap().extend_from_slice(activities);
         Ok(PgQueryResult::default())
     }
-    async fn get_oplend_latest_blocks(&self, _c: i32, _o: Uuid) -> Result<i32, Error> {
+    async fn get_oplend_latest_blocks(
+        &self,
+        _c: i32,
+        _o: Uuid,
+    ) -> Result<i32, Error> {
         Ok(0)
     }
     async fn get_rewards_latest_blocks(&self, _c: i32) -> Result<i32, Error> {
@@ -206,7 +229,10 @@ pub struct FakeFiatHoldingStore {
 
 #[async_trait]
 impl FiatHoldingStore for FakeFiatHoldingStore {
-    async fn insert(&self, holding: &FiatHolding) -> Result<PgQueryResult, Error> {
+    async fn insert(
+        &self,
+        holding: &FiatHolding,
+    ) -> Result<PgQueryResult, Error> {
         self.inserted.lock().unwrap().push(holding.clone());
         Ok(PgQueryResult::default())
     }

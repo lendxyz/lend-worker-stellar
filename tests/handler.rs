@@ -12,11 +12,14 @@ use serde_json::json;
 use uuid::Uuid;
 
 use lend_worker_stellar::handler::Handler;
-use lend_worker_stellar::models::activity_model::{ActivityBuilder, ActivityEventType};
+use lend_worker_stellar::models::activity_model::{
+    ActivityBuilder, ActivityEventType,
+};
 
 const FOP: i32 = 7;
 
-fn op_created_activity() -> lend_worker_stellar::models::activity_model::Activity {
+fn op_created_activity() -> lend_worker_stellar::models::activity_model::Activity
+{
     ActivityBuilder::new(ActivityEventType::OpCreated, 12_345)
         .event_hash("deadbeef#0#lend_op_created".into())
         .op_id(Uuid::from_u128(7))
@@ -33,11 +36,17 @@ fn op_created_activity() -> lend_worker_stellar::models::activity_model::Activit
 async fn op_created_persists_activity_and_seeds_total_shares() {
     let activity = Arc::new(FakeActivityStore::default());
     // unfinished must be non-empty for the OpCreated branch in sync_op_status to run.
-    let operations = Arc::new(FakeOperationStore { unfinished: vec![FOP], ..Default::default() });
+    let operations = Arc::new(FakeOperationStore {
+        unfinished: vec![FOP],
+        ..Default::default()
+    });
     let fiat = Arc::new(FakeFiatHoldingStore::default());
 
-    let mut handler =
-        Handler::with_stores(activity.clone(), operations.clone(), fiat.clone());
+    let mut handler = Handler::with_stores(
+        activity.clone(),
+        operations.clone(),
+        fiat.clone(),
+    );
 
     handler
         .process_events(vec![op_created_activity()])
@@ -53,7 +62,11 @@ async fn op_created_persists_activity_and_seeds_total_shares() {
     // OperationCreated seeded total_shares + supported_chains (the OpLend
     // discovery path): update_operation_total_shares was called with the token.
     let calls = operations.total_shares_calls.lock().unwrap();
-    assert_eq!(calls.len(), 1, "expected one update_operation_total_shares call");
+    assert_eq!(
+        calls.len(),
+        1,
+        "expected one update_operation_total_shares call"
+    );
     let (fop, data) = &calls[0];
     assert_eq!(*fop, FOP);
     assert_eq!(

@@ -8,8 +8,8 @@ mod common;
 use common::*;
 use uuid::Uuid;
 
-use lend_worker_stellar::chain::log_handlers::handle_event;
 use lend_worker_stellar::chain::event_source::RawSorobanEvent;
+use lend_worker_stellar::chain::log_handlers::handle_event;
 use lend_worker_stellar::models::activity_model::Activity;
 use lend_worker_stellar::utils::types::{ContractType, ObservableContract};
 
@@ -46,7 +46,10 @@ fn store() -> FakeOperationStore {
 }
 
 /// Run `handle_event` and return the activities (panics on Err).
-async fn run(contract: &ObservableContract, raw: &RawSorobanEvent) -> Option<Vec<Activity>> {
+async fn run(
+    contract: &ObservableContract,
+    raw: &RawSorobanEvent,
+) -> Option<Vec<Activity>> {
     let ops = store();
     let mut map = std::collections::HashMap::new();
     map.insert(FOP, op_uuid());
@@ -76,25 +79,41 @@ golden!(
 golden!(
     op_started,
     factory_contract(),
-    raw_event(vec![sym("OperationStarted"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("OperationStarted"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
     op_paused,
     factory_contract(),
-    raw_event(vec![sym("OperationPaused"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("OperationPaused"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
     op_resumed,
     factory_contract(),
-    raw_event(vec![sym("OperationResumed"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("OperationResumed"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
     op_canceled,
     factory_contract(),
-    raw_event(vec![sym("OperationCanceled"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("OperationCanceled"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
@@ -110,13 +129,21 @@ golden!(
 golden!(
     predeposits_open,
     factory_contract(),
-    raw_event(vec![sym("PredepositsOpen"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("PredepositsOpen"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
     predeposits_closed,
     factory_contract(),
-    raw_event(vec![sym("PredepositsClosed"), u32v(FOP as u32)], data_map(&[]), FACTORY)
+    raw_event(
+        vec![sym("PredepositsClosed"), u32v(FOP as u32)],
+        data_map(&[]),
+        FACTORY
+    )
 );
 
 golden!(
@@ -124,7 +151,10 @@ golden!(
     factory_contract(),
     raw_event(
         vec![sym("Invested"), addr(ACCOUNT_A), u32v(FOP as u32)],
-        data_map(&[("usdc_amount", i128v(1_000)), ("shares_bought", i128v(50))]),
+        data_map(&[
+            ("usdc_amount", i128v(1_000)),
+            ("shares_bought", i128v(50))
+        ]),
         FACTORY
     )
 );
@@ -133,7 +163,12 @@ golden!(
     invested_fiat,
     factory_contract(),
     raw_event(
-        vec![sym("InvestedFiat"), addr(ACCOUNT_A), addr(ACCOUNT_B), u32v(FOP as u32)],
+        vec![
+            sym("InvestedFiat"),
+            addr(ACCOUNT_A),
+            addr(ACCOUNT_B),
+            u32v(FOP as u32)
+        ],
         data_map(&[("shares_bought", i128v(50))]),
         FACTORY
     )
@@ -154,7 +189,10 @@ golden!(
     factory_contract(),
     raw_event(
         vec![sym("Refunded"), addr(ACCOUNT_A), u32v(FOP as u32)],
-        data_map(&[("usdc_amount", i128v(1_000)), ("shares_refunded", i128v(50))]),
+        data_map(&[
+            ("usdc_amount", i128v(1_000)),
+            ("shares_refunded", i128v(50))
+        ]),
         FACTORY
     )
 );
@@ -166,7 +204,10 @@ golden!(
     oplend_contract(),
     raw_event(
         vec![sym("transfer"), addr(ACCOUNT_A), addr(ACCOUNT_B)],
-        data_map(&[("to_muxed_id", stellar_xdr::ScVal::Void), ("amount", i128v(99))]),
+        data_map(&[
+            ("to_muxed_id", stellar_xdr::ScVal::Void),
+            ("amount", i128v(99))
+        ]),
         FACTORY
     )
 );
@@ -180,5 +221,8 @@ async fn gifted_is_unindexed() {
         FACTORY,
     );
     let out = run(&factory_contract(), &raw).await;
-    assert!(out.is_none(), "Gifted must not produce activities, got {out:?}");
+    assert!(
+        out.is_none(),
+        "Gifted must not produce activities, got {out:?}"
+    );
 }
