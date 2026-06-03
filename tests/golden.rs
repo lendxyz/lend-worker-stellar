@@ -212,6 +212,48 @@ golden!(
     )
 );
 
+// ---- Rewards contract events --------------------------------------------
+
+golden!(
+    claimed_rewards,
+    factory_contract(),
+    raw_event(
+        vec![sym("Claimed"), u32v(FOP as u32), addr(ACCOUNT_A)],
+        data_map(&[("balance", i128v(500))]),
+        FACTORY
+    )
+);
+
+golden!(
+    claimed_ref_rewards,
+    factory_contract(),
+    raw_event(
+        vec![sym("ClaimedRef"), addr(ACCOUNT_A)],
+        data_map(&[("balance", i128v(250))]),
+        FACTORY
+    )
+);
+
+golden!(
+    rewards_distributed,
+    factory_contract(),
+    raw_event(
+        vec![sym("RewardsDistributed"), u32v(FOP as u32), u32v(3)],
+        data_map(&[("amount", i128v(1_000))]),
+        FACTORY
+    )
+);
+
+golden!(
+    ref_rewards_distributed,
+    factory_contract(),
+    raw_event(
+        vec![sym("RefRewardsDistributed"), u32v(3)],
+        data_map(&[("amount", i128v(800))]),
+        FACTORY
+    )
+);
+
 /// A deferred/unindexed event (`Gifted`) decodes to nothing.
 #[tokio::test]
 async fn gifted_is_unindexed() {

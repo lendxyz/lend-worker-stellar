@@ -60,6 +60,25 @@ pub enum ContractEvent {
         to: String,
         amount: i128,
     },
+    // Rewards contract events.
+    ClaimedRewards {
+        op_id: u32,
+        user: String,
+        balance: i128,
+    },
+    ClaimedRefRewards {
+        user: String,
+        balance: i128,
+    },
+    RewardsDistributed {
+        op_id: u32,
+        epoch: u32,
+        amount: i128,
+    },
+    RefRewardsDistributed {
+        epoch: u32,
+        amount: i128,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

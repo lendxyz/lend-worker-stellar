@@ -2,7 +2,6 @@ use once_cell::sync::Lazy;
 
 pub static ENV: Lazy<LocalEnv> = Lazy::new(LocalEnv::new);
 
-/// Fixed chain id for the Stellar deployment in the shared data model.
 pub const STELLAR_CHAIN_ID: i32 = 0;
 
 pub fn get_config() -> LocalEnv {
@@ -44,6 +43,7 @@ pub struct LocalEnv {
     pub db_url: String,
     pub health_check_url: String,
     pub factory_contract_id: String,
+    pub rewards_contract_id: String,
     pub fiat_safe_address: String,
     pub soroban_rpc_url: String,
     pub backfill_source_url: String,
@@ -75,6 +75,7 @@ impl LocalEnv {
             db_url: get_env("DATABASE_URL"),
             health_check_url: get_env("HEALTH_CHECK_URL"),
             factory_contract_id: get_env("FACTORY_CONTRACT_ID"),
+            rewards_contract_id: get_env("REWARDS_CONTRACT_ID"),
             fiat_safe_address: get_env("FIAT_SAFE_ADDRESS"),
             soroban_rpc_url: get_env_or(
                 "SOROBAN_RPC_URL",
