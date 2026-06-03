@@ -40,6 +40,13 @@ pub fn fixed_ts() -> DateTime<Utc> {
     Utc.timestamp_opt(1_700_000_000, 0).unwrap()
 }
 
+/// Process-wide serial guard for DB tests: they share one schema and each
+/// re-applies it (DROP/CREATE), so they must not run concurrently.
+pub fn db_serial() -> &'static tokio::sync::Mutex<()> {
+    static L: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    L.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
 // ---- XDR ScVal builders -------------------------------------------------
 
 pub fn sym(s: &str) -> ScVal {
