@@ -220,6 +220,82 @@ pub fn build_activity(
             block_number,
             block_timestamp,
         ),
+        ContractEvent::ClaimedRewards {
+            op_id,
+            user,
+            balance,
+        } => {
+            let op_uuid = op_uuid(fopid_to_opid, op_id)?;
+            Some(vec![
+                ActivityBuilder::new(
+                    ActivityEventType::ClaimedRewards,
+                    block_number,
+                )
+                .block_timestamp(block_timestamp)
+                .event_hash(format!("{tx_hash}#lend_rewards_claimed"))
+                .op_id(op_uuid)
+                .factory_op_id(op_id as i32)
+                .user_address(Some(user))
+                .data(json!({
+                    "tx_hash": tx_hash,
+                    "usdc_amount": balance.to_string(),
+                }))
+                .build(),
+            ])
+        }
+        // Referral rewards are not tied to an operation.
+        ContractEvent::ClaimedRefRewards { user, balance } => Some(vec![
+            ActivityBuilder::new(
+                ActivityEventType::ClaimedRefRewards,
+                block_number,
+            )
+            .block_timestamp(block_timestamp)
+            .event_hash(format!("{tx_hash}#lend_ref_rewards_claimed"))
+            .user_address(Some(user))
+            .data(json!({
+                "tx_hash": tx_hash,
+                "usdc_amount": balance.to_string(),
+            }))
+            .build(),
+        ]),
+        ContractEvent::RewardsDistributed {
+            op_id,
+            epoch,
+            amount,
+        } => {
+            let op_uuid = op_uuid(fopid_to_opid, op_id)?;
+            Some(vec![
+                ActivityBuilder::new(
+                    ActivityEventType::RewardsDistributed,
+                    block_number,
+                )
+                .block_timestamp(block_timestamp)
+                .event_hash(format!("{tx_hash}#lend_rewards_distributed"))
+                .op_id(op_uuid)
+                .factory_op_id(op_id as i32)
+                .data(json!({
+                    "tx_hash": tx_hash,
+                    "usdc_amount": amount.to_string(),
+                    "epoch": epoch.to_string(),
+                    "op_id": op_id as i32,
+                }))
+                .build(),
+            ])
+        }
+        ContractEvent::RefRewardsDistributed { epoch, amount } => Some(vec![
+            ActivityBuilder::new(
+                ActivityEventType::RefRewardsDistributed,
+                block_number,
+            )
+            .block_timestamp(block_timestamp)
+            .event_hash(format!("{tx_hash}#lend_ref_rewards_distributed"))
+            .data(json!({
+                "tx_hash": tx_hash,
+                "usdc_amount": amount.to_string(),
+                "epoch": epoch.to_string(),
+            }))
+            .build(),
+        ]),
         // I/O variants handled in lw_chain::log_handlers::handle_event.
         _ => None,
     }

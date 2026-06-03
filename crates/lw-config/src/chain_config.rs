@@ -3,7 +3,7 @@ use stellar_rpc_client::Client;
 
 /// Single network this service indexes. Replaces the former multi-chain
 /// registry. `chain_id` is fixed to the Stellar sentinel (0); `rewards_address`
-/// stays `None` until a Soroban Rewards contract ships (dormant stub).
+/// is `Some` once `REWARDS_CONTRACT_ID` is configured.
 #[derive(Debug, Clone)]
 pub struct StellarNetwork {
     pub chain_id: i32,
@@ -15,11 +15,16 @@ pub struct StellarNetwork {
 impl Default for StellarNetwork {
     fn default() -> Self {
         let cfg = get_config();
+        let rewards_address = if cfg.rewards_contract_id.is_empty() {
+            None
+        } else {
+            Some(cfg.rewards_contract_id)
+        };
         Self {
             chain_id: STELLAR_CHAIN_ID,
             factory_contract_id: cfg.factory_contract_id,
             factory_start_ledger: cfg.start_ledger,
-            rewards_address: None,
+            rewards_address,
         }
     }
 }
