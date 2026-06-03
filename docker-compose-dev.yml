@@ -1,0 +1,13 @@
+services:
+  lend_worker_stellar_dev:
+    container_name: lend_worker_stellar_dev
+    command: sh -c "cargo watch -x run"
+    volumes:
+      - .:/app
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+    environment:
+      APP_ENV: development
+    env_file:
+      - .env

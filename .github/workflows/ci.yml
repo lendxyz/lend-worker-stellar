@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test:
+    name: fmt · clippy · build · test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lend_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Drives the repository round-trip tests (tests/repository_db.rs).
+      # Points at the throwaway service above; the schema is dropped/recreated.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/lend_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Honors the pinned channel in ./rust-toolchain (1.88.0).
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo + target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace --all-targets --locked
+
+      # Characterization / golden suite. INSTA_UPDATE is left unset so insta
+      # compares against the committed snapshots and fails on any drift.
+      - name: Test
+        run: cargo test --workspace --locked

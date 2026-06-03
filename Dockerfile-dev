@@ -1,0 +1,16 @@
+FROM rust:alpine3.21
+WORKDIR /app
+
+ENV APP_ENV="development"
+
+# Install musl-tools to make many crates compile successfully
+RUN apk add --no-cache clang lld musl-dev pkgconf openssl-dev
+
+ENV OPENSSL_DIR=/usr
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+
+# Install cargo-watch
+RUN cargo install cargo-watch
+
+COPY ./ ./

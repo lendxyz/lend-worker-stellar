@@ -1,0 +1,18 @@
+services:
+  test-db:
+    image: postgres:16-alpine
+    container_name: lw-test-pg
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lend_test
+    ports:
+      # Host 55432 to avoid clashing with a local Postgres on 5432.
+      - "55432:5432"
+    # Throwaway data: kept in memory, nothing to clean up on disk.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

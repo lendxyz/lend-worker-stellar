@@ -1,0 +1,19 @@
+[package]
+name = "lw-config"
+version = "0.1.0"
+edition = "2024"
+
+# The `sol!` event definitions in src/types.rs carry Solidity-style doc
+# comments that rustdoc would otherwise extract as (non-compiling) doctests.
+[lib]
+doctest = false
+
+[dependencies]
+stellar-xdr = { version = "27.0.0", features = ["std", "base64"] }
+stellar-strkey = "0.0.16"
+stellar-rpc-client = "26.0.0"
+chrono = { version = "0.4.38", features = ["serde"] }
+eyre = "0.6.12"
+once_cell = "1.19.0"
+reqwest = "0.12"
+uuid = { version = "1", features = ["serde", "v4"] }

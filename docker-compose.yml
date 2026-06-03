@@ -1,0 +1,11 @@
+services:
+  lend_worker_stellar:
+    restart: always
+    container_name: lend_worker_stellar
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+    env_file:
+      - .env
