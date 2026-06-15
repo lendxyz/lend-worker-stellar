@@ -24,6 +24,17 @@ use lw_storage::op_repository::{
     OperationProgressUpdate, OperationStore, PgOperationStore,
 };
 
+/// Whether `addr` is a Soroban StrKey address: a contract (`C...`) or
+/// account (`G...`) key, 56 chars of base32 (`A-Z`, `2-7`). Anything else
+/// (e.g. an EVM EIP-55 `0x...` address) is rejected.
+fn is_soroban_address(addr: &str) -> bool {
+    addr.len() == 56
+        && matches!(addr.as_bytes()[0], b'C' | b'G')
+        && addr
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || (b'2'..=b'7').contains(&b))
+}
+
 #[derive(Clone)]
 pub struct Handler {
     pub fopid_to_dbopid: OpMapping,
@@ -353,6 +364,12 @@ impl Handler {
     async fn get_latest_oplend_activity(&mut self) {
         for (_, op_data) in self.op_data.clone() {
             for supp_chain in op_data.supported_chains.0.iter() {
+                // op_token can hold a contract address for any supported
+                // chain. This worker only indexes Stellar, so skip EVM
+                // EIP-55 addresses and keep Soroban StrKey addresses.
+                if !is_soroban_address(&supp_chain.op_token) {
+                    continue;
+                }
                 let latest_block = self
                     .activity
                     .get_oplend_latest_blocks(STELLAR_CHAIN_ID, op_data.id)
@@ -367,5 +384,54 @@ impl Handler {
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_soroban_address;
+
+    /// Build a 56-char StrKey from a prefix, padding with base32 `A`s.
+    fn strkey(prefix: char) -> String {
+        format!("{prefix}{}", "A".repeat(55))
+    }
+
+    #[test]
+    fn accepts_soroban_contract_and_account() {
+        assert!(is_soroban_address(&strkey('C')));
+        assert!(is_soroban_address(&strkey('G')));
+        // Real-world style contract address (56 base32 chars).
+        assert!(is_soroban_address(
+            "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+        ));
+    }
+
+    #[test]
+    fn rejects_evm_eip55_address() {
+        assert!(!is_soroban_address(
+            "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+        ));
+    }
+
+    #[test]
+    fn rejects_wrong_length() {
+        assert!(!is_soroban_address("CAAA"));
+        assert!(!is_soroban_address(&format!("C{}", "A".repeat(56))));
+        assert!(!is_soroban_address(""));
+    }
+
+    #[test]
+    fn rejects_bad_prefix() {
+        // Right shape, wrong leading char.
+        assert!(!is_soroban_address(&strkey('A')));
+        assert!(!is_soroban_address(&strkey('M')));
+    }
+
+    #[test]
+    fn rejects_non_base32_chars() {
+        // `1`, `0`, `8`, `9` are outside the base32 alphabet.
+        assert!(!is_soroban_address(&format!("C{}1", "A".repeat(54))));
+        assert!(!is_soroban_address(&format!("C{}0", "A".repeat(54))));
+        assert!(!is_soroban_address(&format!("C{}", "a".repeat(55))));
     }
 }
