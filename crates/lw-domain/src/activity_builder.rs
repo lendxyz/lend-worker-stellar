@@ -9,17 +9,9 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 use uuid::Uuid;
 
-use lw_config::config::{AppEnv, get_config};
 use lw_config::types::ContractEvent;
 
 use crate::activity_model::{Activity, ActivityBuilder, ActivityEventType};
-
-/// Outside production, factory events for reserved low op ids (1..=10) are
-/// test/staging noise and dropped.
-pub fn is_filtered_test_op(operation_id: u32) -> bool {
-    let cfg = get_config();
-    cfg.env != AppEnv::Production && operation_id <= 10
-}
 
 fn op_uuid(fopid_to_opid: &HashMap<i32, Uuid>, op_id: u32) -> Option<Uuid> {
     fopid_to_opid.get(&(op_id as i32)).copied()
@@ -53,9 +45,6 @@ pub fn build_activity(
             ])
         }
         ContractEvent::OpPredepositsOpen { operation_id } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(
@@ -71,9 +60,6 @@ pub fn build_activity(
             ])
         }
         ContractEvent::OpPredepositsClosed { operation_id } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(
@@ -94,9 +80,6 @@ pub fn build_activity(
             usdc_amount,
             shares_bought,
         } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(ActivityEventType::Invested, block_number)
@@ -119,9 +102,6 @@ pub fn build_activity(
             operation_id,
             shares_bought,
         } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(
@@ -147,9 +127,6 @@ pub fn build_activity(
             usdc_amount,
             shares_refunded,
         } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(ActivityEventType::Refunded, block_number)
@@ -179,9 +156,6 @@ pub fn build_activity(
             operation_id,
             amount_raised_euro,
         } => {
-            if is_filtered_test_op(operation_id) {
-                return None;
-            }
             let op_id = op_uuid(fopid_to_opid, operation_id)?;
             Some(vec![
                 ActivityBuilder::new(ActivityEventType::OpFinished, block_number)
@@ -311,9 +285,6 @@ fn simple_lifecycle(
     block_number: i32,
     block_timestamp: DateTime<Utc>,
 ) -> Option<Vec<Activity>> {
-    if is_filtered_test_op(operation_id) {
-        return None;
-    }
     let op_id = op_uuid(fopid_to_opid, operation_id)?;
     Some(vec![
         ActivityBuilder::new(event_type, block_number)

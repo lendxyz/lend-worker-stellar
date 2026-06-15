@@ -3,7 +3,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use lw_config::config::{AppEnv, get_config, get_ignored_addresses};
+use lw_config::config::get_ignored_addresses;
 use lw_config::types::{ContractEvent, ObservableContract};
 use lw_domain::activity_builder::build_activity;
 use lw_domain::activity_model::{Activity, ActivityBuilder, ActivityEventType};
@@ -150,12 +150,6 @@ pub async fn handle_event(
             operation_id,
             total_shares,
         } => {
-            if get_config().env != AppEnv::Production
-                && operation_id <= 10
-                && raw.contract_id != get_config().factory_contract_id
-            {
-                return Ok(None);
-            }
             let fopid = operation_id as i32;
             let op_id = match fopid_to_opid.get(&fopid) {
                 Some(id) => *id,
