@@ -12,7 +12,8 @@ use lw_config::config::STELLAR_CHAIN_ID;
 use lw_domain::activity_model::{
     ActivityEventType, OpCreatedEventData, activity_event_to_funding_status,
 };
-use lw_domain::op_model::{FundingStatus, Operation};
+use lw_domain::op_model::{FundingStatus, Operation, SupportedChains};
+use sqlx::types::Json;
 
 use super::helpers::{Database, get_database};
 
@@ -67,6 +68,11 @@ struct ActiveOperationsQuery {
 #[derive(Debug, Clone, FromRow)]
 struct OperationIdQuery {
     op_id: Uuid,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct SupportedChainsQuery {
+    supported_chains: Json<Vec<SupportedChains>>,
 }
 
 #[derive(Debug, Clone)]
@@ -264,6 +270,49 @@ impl OperationStore for PgOperationStore {
     ) -> Result<PgQueryResult, Error> {
         let data_wrapped = serde_json::from_value::<OpCreatedEventData>(d);
         if let Ok(data) = data_wrapped {
+            // Existing supported_chains for this operation, if the row exists.
+            let existing = sqlx::query_as::<_, SupportedChainsQuery>(
+                "SELECT supported_chains
+                FROM operations
+                WHERE factory_op_id = $1",
+            )
+            .bind(op_id)
+            .fetch_optional(self.db.pool())
+            .await?;
+
+            let has_primary = existing
+                .as_ref()
+                .map(|row| row.supported_chains.0.iter().any(|c| c.primary))
+                .unwrap_or(false);
+
+            if has_primary {
+                let mut supported_chains: Vec<Value> = existing
+                    .map(|row| row.supported_chains.0)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|c| json!(c))
+                    .collect();
+
+                supported_chains.push(json!({
+                    "op_token": &data.op_token,
+                    "chain_id": STELLAR_CHAIN_ID,
+                    "lz_endpoint_id": 0,
+                    "primary": false,
+                }));
+
+                let sql = r#"
+                    UPDATE operations
+                    SET supported_chains = $1
+                    WHERE factory_op_id = $2
+                "#;
+
+                return sqlx::query(sql)
+                    .bind(json!(supported_chains))
+                    .bind(op_id)
+                    .execute(self.db.pool())
+                    .await;
+            }
+
             let mut supported_chains: Vec<Value> = vec![];
 
             supported_chains.push(json!({
