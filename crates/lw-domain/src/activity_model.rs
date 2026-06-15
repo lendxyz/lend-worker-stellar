@@ -176,11 +176,6 @@ impl ActivityBuilder {
         self
     }
 
-    pub fn chain_id(mut self, chain_id: i32) -> Self {
-        self.chain_id = chain_id;
-        self
-    }
-
     pub fn user_address(mut self, user_address: Option<String>) -> Self {
         self.user_address = user_address;
         self

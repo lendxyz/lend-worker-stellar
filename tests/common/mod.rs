@@ -179,17 +179,10 @@ impl ActivityStore for FakeActivityStore {
         self.inserted.lock().unwrap().extend_from_slice(activities);
         Ok(PgQueryResult::default())
     }
-    async fn get_oplend_latest_blocks(
-        &self,
-        _c: i32,
-        _o: Uuid,
-    ) -> Result<i32, Error> {
+    async fn get_oplend_latest_blocks(&self, _o: Uuid) -> Result<i32, Error> {
         Ok(0)
     }
-    async fn get_rewards_latest_blocks(&self, _c: i32) -> Result<i32, Error> {
-        Ok(0)
-    }
-    async fn get_router_latest_block(&self, _c: i32) -> Result<i32, Error> {
+    async fn get_rewards_latest_blocks(&self) -> Result<i32, Error> {
         Ok(0)
     }
     async fn get_factory_latest_block(&self) -> Result<i32, Error> {

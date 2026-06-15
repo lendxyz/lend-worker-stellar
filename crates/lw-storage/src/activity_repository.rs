@@ -21,19 +21,9 @@ pub trait ActivityStore: Send + Sync {
         &self,
         activities: &[Activity],
     ) -> Result<PgQueryResult, Error>;
-    async fn get_oplend_latest_blocks(
-        &self,
-        chain_id: i32,
-        op_id: Uuid,
-    ) -> Result<i32, Error>;
-    async fn get_rewards_latest_blocks(
-        &self,
-        chain_id: i32,
-    ) -> Result<i32, Error>;
-    async fn get_router_latest_block(
-        &self,
-        chain_id: i32,
-    ) -> Result<i32, Error>;
+    async fn get_oplend_latest_blocks(&self, op_id: Uuid)
+    -> Result<i32, Error>;
+    async fn get_rewards_latest_blocks(&self) -> Result<i32, Error>;
     async fn get_factory_latest_block(&self) -> Result<i32, Error>;
     async fn get_total_invested_amounts(
         &self,
@@ -141,7 +131,6 @@ impl ActivityStore for PgActivityStore {
 
     async fn get_oplend_latest_blocks(
         &self,
-        chain_id: i32,
         op_id: Uuid,
     ) -> Result<i32, Error> {
         let sql = r#"
@@ -154,7 +143,7 @@ impl ActivityStore for PgActivityStore {
         "#;
 
         match sqlx::query_as::<_, LatestActivityBlocks>(sql)
-            .bind(chain_id)
+            .bind(STELLAR_CHAIN_ID)
             .bind(op_id)
             .fetch_all(self.db.pool())
             .await
@@ -164,10 +153,7 @@ impl ActivityStore for PgActivityStore {
         }
     }
 
-    async fn get_rewards_latest_blocks(
-        &self,
-        chain_id: i32,
-    ) -> Result<i32, Error> {
+    async fn get_rewards_latest_blocks(&self) -> Result<i32, Error> {
         let sql = r#"
             SELECT MAX(block_number)
             AS max_block_number
@@ -177,29 +163,7 @@ impl ActivityStore for PgActivityStore {
         "#;
 
         match sqlx::query_as::<_, LatestActivityBlocks>(sql)
-            .bind(chain_id)
-            .fetch_all(self.db.pool())
-            .await
-        {
-            Ok(res) => Ok(res[0].max_block_number),
-            Err(_) => Ok(0),
-        }
-    }
-
-    async fn get_router_latest_block(
-        &self,
-        chain_id: i32,
-    ) -> Result<i32, Error> {
-        let sql = r#"
-            SELECT MAX(block_number)
-            AS max_block_number
-            FROM activity
-            WHERE chain_id = $1
-            AND event_type IN ('order_filled', 'order_cancelled')
-        "#;
-
-        match sqlx::query_as::<_, LatestActivityBlocks>(sql)
-            .bind(chain_id)
+            .bind(STELLAR_CHAIN_ID)
             .fetch_all(self.db.pool())
             .await
         {
@@ -300,11 +264,12 @@ impl ActivityStore for PgActivityStore {
                 COALESCE(SUM((data ->> 'usdc_amount')  ::BIGINT), 0)::TEXT AS total_usdc_amount,
                 COALESCE(SUM((data ->> 'shares_bought')::BIGINT), 0)::TEXT AS total_shares_bought
             FROM activity
-            WHERE event_type = 'invested' AND factory_op_id = ANY($1::INT[]) AND chain_id = 0
+            WHERE event_type = 'invested' AND factory_op_id = ANY($1::INT[]) AND chain_id = $2
             GROUP BY factory_op_id
         "#;
         let rows = sqlx::query_as::<_, InvestedTotals>(sql)
             .bind(op_ids)
+            .bind(STELLAR_CHAIN_ID)
             .fetch_all(self.db.pool())
             .await?;
 
@@ -324,12 +289,13 @@ impl ActivityStore for PgActivityStore {
                 COALESCE(SUM((data ->> 'usdc_amount')  ::BIGINT), 0)::TEXT AS total_usdc_amount,
                 COALESCE(SUM((data ->> 'shares_refunded')::BIGINT), 0)::TEXT AS total_shares_refunded
             FROM activity
-            WHERE event_type = 'refunded' AND factory_op_id = ANY($1::INT[]) AND chain_id = 0
+            WHERE event_type = 'refunded' AND factory_op_id = ANY($1::INT[]) AND chain_id = $2
             GROUP BY factory_op_id
         "#;
 
         let rows = sqlx::query_as::<_, RefundedTotals>(sql)
             .bind(op_ids)
+            .bind(STELLAR_CHAIN_ID)
             .fetch_all(self.db.pool())
             .await?;
 

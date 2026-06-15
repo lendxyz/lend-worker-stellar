@@ -400,11 +400,8 @@ impl Handler {
     async fn get_latest_rewards_activity(&mut self) {
         let net = StellarNetwork::default();
         if let Some(rewards_address) = net.rewards_address {
-            let latest_block = self
-                .activity
-                .get_rewards_latest_blocks(STELLAR_CHAIN_ID)
-                .await
-                .unwrap_or(0);
+            let latest_block =
+                self.activity.get_rewards_latest_blocks().await.unwrap_or(0);
             self.contracts.push(ObservableContract {
                 contract_type: ContractType::Rewards,
                 op_id: None,
@@ -426,7 +423,7 @@ impl Handler {
                 }
                 let latest_block = self
                     .activity
-                    .get_oplend_latest_blocks(STELLAR_CHAIN_ID, op_data.id)
+                    .get_oplend_latest_blocks(op_data.id)
                     .await
                     .unwrap_or(0);
                 self.contracts.push(ObservableContract {
