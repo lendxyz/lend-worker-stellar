@@ -227,6 +227,19 @@ impl Handler {
         }
     }
 
+    fn stellar_chain_is_primary(&self, fop_id: i32) -> bool {
+        self.fopid_to_dbopid
+            .get(&fop_id)
+            .and_then(|op_id| self.op_data.get(op_id))
+            .map(|op| {
+                op.supported_chains
+                    .0
+                    .iter()
+                    .any(|c| c.chain_id == STELLAR_CHAIN_ID && c.primary)
+            })
+            .unwrap_or(false)
+    }
+
     async fn sync_op_status(&mut self, events: &Vec<Activity>) {
         let unfinished_ops = self.operations.get_unfinished_operations().await;
 
@@ -235,12 +248,25 @@ impl Handler {
         {
             if let Ok(statuses) =
                 self.activity.get_operation_status_history(ops).await
-                && let Err(err) =
-                    self.operations.update_operation_status(&statuses).await
             {
-                error!(
-                    "[Handler::sync_op_status] Failed to update op status: {err:?}"
-                );
+                // Only sync status for ops whose Stellar chain (chain_id 0) is
+                // the primary one. Skip the call entirely if none qualify, so
+                // the repository stays free of this filtering logic.
+                let statuses: HashMap<i32, ActivityEventType> = statuses
+                    .into_iter()
+                    .filter(|(fop_id, _)| {
+                        self.stellar_chain_is_primary(*fop_id)
+                    })
+                    .collect();
+
+                if !statuses.is_empty()
+                    && let Err(err) =
+                        self.operations.update_operation_status(&statuses).await
+                {
+                    error!(
+                        "[Handler::sync_op_status] Failed to update op status: {err:?}"
+                    );
+                }
             }
 
             for event in events {

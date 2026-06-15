@@ -131,3 +131,61 @@ async fn operation_total_shares_seeds_deserializable_supported_chains() {
     assert_eq!(sc.lz_endpoint_id, 0);
     assert!(sc.primary);
 }
+
+#[tokio::test]
+async fn operation_total_shares_appends_non_primary_when_primary_exists() {
+    let Some(url) = test_db_url() else {
+        eprintln!(
+            "TEST_DATABASE_URL unset — skipping repository_db append path"
+        );
+        return;
+    };
+    let _guard = common::db_serial().lock().await;
+    let db = Database::connect(&url).await.expect("connect");
+    let op_id = Uuid::from_u128(0xCAFE);
+    setup(&db, op_id).await;
+
+    let ops = PgOperationStore::with_db(db.clone());
+
+    // First OperationCreated seeds the primary Stellar chain + total_shares.
+    ops.update_operation_total_shares(
+        FOP,
+        json!({ "tx_hash": "tx#0", "op_token": OP_TOKEN, "total_shares": "1000000" }),
+    )
+    .await
+    .expect("seed primary");
+
+    // Second OperationCreated for an op that already has a primary chain:
+    // total_shares must NOT change, and the new chain is appended as
+    // non-primary instead of overwriting the array.
+    const OTHER_TOKEN: &str =
+        "CCREATEDSECONDTOKENXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+    ops.update_operation_total_shares(
+        FOP,
+        json!({ "tx_hash": "tx#1", "op_token": OTHER_TOKEN, "total_shares": "9999999" }),
+    )
+    .await
+    .expect("append non-primary");
+
+    let all = ops.get_all().await.expect("get_all");
+    let op = all
+        .iter()
+        .find(|o| o.id == op_id)
+        .expect("operation present");
+
+    // total_shares untouched by the second call.
+    assert_eq!(op.total_shares.as_deref(), Some("1000000"));
+
+    // Original primary entry preserved, new entry appended as non-primary.
+    assert_eq!(op.supported_chains.0.len(), 2);
+
+    let primary = &op.supported_chains.0[0];
+    assert_eq!(primary.op_token, OP_TOKEN);
+    assert!(primary.primary);
+
+    let appended = &op.supported_chains.0[1];
+    assert_eq!(appended.op_token, OTHER_TOKEN);
+    assert_eq!(appended.chain_id, 0);
+    assert_eq!(appended.lz_endpoint_id, 0);
+    assert!(!appended.primary);
+}
