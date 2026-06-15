@@ -177,12 +177,22 @@ impl Handler {
                 self.activity.get_total_invested_amounts(ops.clone()).await;
             let tr_query =
                 self.activity.get_total_refunded_amounts(ops.clone()).await;
+            let ti_stlr_query = self
+                .activity
+                .get_total_stellar_invested_amounts(ops.clone())
+                .await;
+            let tr_stlr_query = self
+                .activity
+                .get_total_stellar_refunded_amounts(ops.clone())
+                .await;
 
             if let (
                 Ok(total_participants),
                 Ok(total_invested),
                 Ok(total_refunded),
-            ) = (tp_query, ti_query, tr_query)
+                Ok(total_invested_stlr),
+                Ok(total_refunded_stlr),
+            ) = (tp_query, ti_query, tr_query, ti_stlr_query, tr_stlr_query)
             {
                 let mut res: HashMap<i32, OperationProgressUpdate> =
                     HashMap::new();
@@ -205,13 +215,31 @@ impl Handler {
                         })
                         .unwrap_or(0);
 
+                    let invested_stlr = total_invested_stlr
+                        .get(&op_id)
+                        .and_then(|s| {
+                            s.total_shares_bought.parse::<u128>().ok()
+                        })
+                        .unwrap_or(0);
+
+                    let refunded_stlr = total_refunded_stlr
+                        .get(&op_id)
+                        .and_then(|s| {
+                            s.total_shares_refunded.parse::<u128>().ok()
+                        })
+                        .unwrap_or(0);
+
                     let funded_amount = net_funded_shares(invested, refunded);
+                    let stellar_funded_amount =
+                        net_funded_shares(invested_stlr, refunded_stlr);
 
                     res.insert(
                         op_id,
                         OperationProgressUpdate {
                             participants,
                             funded_amount: funded_amount.to_string(),
+                            stellar_funded_amount: stellar_funded_amount
+                                .to_string(),
                         },
                     );
                 }

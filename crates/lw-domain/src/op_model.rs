@@ -35,8 +35,10 @@ pub struct Operation {
     pub funding_status: FundingStatus,
     pub funding_goal: Option<String>,
     pub shares_sold: Option<String>,
+    pub stellar_shares_sold: Option<String>,
     pub funding_participants: Option<i32>,
     pub total_shares: Option<String>,
+    pub stellar_shares: Option<String>,
     pub supported_chains: Json<Vec<SupportedChains>>,
     pub factory_op_id: Option<i32>,
 }

@@ -79,6 +79,7 @@ struct SupportedChainsQuery {
 pub struct OperationProgressUpdate {
     pub participants: i64,
     pub funded_amount: String,
+    pub stellar_funded_amount: String,
 }
 
 #[async_trait]
@@ -90,8 +91,10 @@ impl OperationStore for PgOperationStore {
                 funding_status,
                 funding_goal,
                 shares_sold,
+                stellar_shares_sold,
                 funding_participants,
                 total_shares,
+                stellar_shares,
                 supported_chains,
                 factory_op_id
             FROM operations
@@ -159,6 +162,10 @@ impl OperationStore for PgOperationStore {
             updates.values().map(|v| v.participants).collect();
         let shares_sold: Vec<String> =
             updates.values().map(|v| v.funded_amount.clone()).collect();
+        let shares_sold_stlr: Vec<String> = updates
+            .values()
+            .map(|v| v.stellar_funded_amount.clone())
+            .collect();
         let updated_ats: Vec<chrono::DateTime<chrono::Utc>> =
             vec![Utc::now(); updates.len()];
 
@@ -168,12 +175,14 @@ impl OperationStore for PgOperationStore {
                     UNNEST($1::INT[]) AS factory_op_id,
                     UNNEST($2::BIGINT[]) AS funding_participants,
                     UNNEST($3::TEXT[]) AS shares_sold,
-                    UNNEST($4::TIMESTAMPTZ[]) AS updated_at
+                    UNNEST($4::TEXT[]) AS stellar_shares_sold,
+                    UNNEST($5::TIMESTAMPTZ[]) AS updated_at
             )
             UPDATE operations o
             SET
                 funding_participants = d.funding_participants,
                 shares_sold = d.shares_sold,
+                stellar_shares_sold = d.stellar_shares_sold,
                 updated_at = d.updated_at
             FROM data d
             WHERE o.factory_op_id = d.factory_op_id
@@ -183,6 +192,7 @@ impl OperationStore for PgOperationStore {
             .bind(&factory_op_ids)
             .bind(funding_participants)
             .bind(shares_sold)
+            .bind(shares_sold_stlr)
             .bind(updated_ats)
             .execute(&mut *tx)
             .await?;
@@ -302,12 +312,16 @@ impl OperationStore for PgOperationStore {
 
                 let sql = r#"
                     UPDATE operations
-                    SET supported_chains = $1
-                    WHERE factory_op_id = $2
+                    SET supported_chains = $1,
+                        stellar_shares = $2,
+                        total_shares =
+                            (COALESCE(total_shares, '0')::NUMERIC + $2::NUMERIC)::TEXT
+                    WHERE factory_op_id = $3
                 "#;
 
                 return sqlx::query(sql)
                     .bind(json!(supported_chains))
+                    .bind(data.total_shares)
                     .bind(op_id)
                     .execute(self.db.pool())
                     .await;
@@ -324,7 +338,7 @@ impl OperationStore for PgOperationStore {
 
             let sql = r#"
                 UPDATE operations
-                SET total_shares = $1, supported_chains = $2
+                SET total_shares = $1, stellar_shares = $1, supported_chains = $2
                 WHERE factory_op_id = $3
             "#;
 

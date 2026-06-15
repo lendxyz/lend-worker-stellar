@@ -207,6 +207,18 @@ impl ActivityStore for FakeActivityStore {
     ) -> Result<HashMap<i32, RefundedTotals>, Error> {
         Ok(HashMap::new())
     }
+    async fn get_total_stellar_invested_amounts(
+        &self,
+        _o: Vec<i32>,
+    ) -> Result<HashMap<i32, InvestedTotals>, Error> {
+        Ok(HashMap::new())
+    }
+    async fn get_total_stellar_refunded_amounts(
+        &self,
+        _o: Vec<i32>,
+    ) -> Result<HashMap<i32, RefundedTotals>, Error> {
+        Ok(HashMap::new())
+    }
     async fn get_operation_participants(
         &self,
         _o: Vec<i32>,

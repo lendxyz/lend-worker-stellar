@@ -124,6 +124,8 @@ async fn operation_total_shares_seeds_deserializable_supported_chains() {
         .find(|o| o.id == op_id)
         .expect("operation present");
     assert_eq!(op.total_shares.as_deref(), Some("1000000"));
+    // Stellar-primary seed sets stellar_shares alongside total_shares.
+    assert_eq!(op.stellar_shares.as_deref(), Some("1000000"));
     assert_eq!(op.supported_chains.0.len(), 1);
     let sc = &op.supported_chains.0[0];
     assert_eq!(sc.op_token, OP_TOKEN);
@@ -173,8 +175,10 @@ async fn operation_total_shares_appends_non_primary_when_primary_exists() {
         .find(|o| o.id == op_id)
         .expect("operation present");
 
-    // total_shares untouched by the second call.
-    assert_eq!(op.total_shares.as_deref(), Some("1000000"));
+    // total_shares accumulates across chains (1000000 + 9999999); stellar_shares
+    // tracks only the shares created on the appended Stellar chain.
+    assert_eq!(op.total_shares.as_deref(), Some("10999999"));
+    assert_eq!(op.stellar_shares.as_deref(), Some("9999999"));
 
     // Original primary entry preserved, new entry appended as non-primary.
     assert_eq!(op.supported_chains.0.len(), 2);

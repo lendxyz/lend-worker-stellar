@@ -43,6 +43,14 @@ pub trait ActivityStore: Send + Sync {
         &self,
         op_ids: Vec<i32>,
     ) -> Result<HashMap<i32, RefundedTotals>, Error>;
+    async fn get_total_stellar_invested_amounts(
+        &self,
+        op_ids: Vec<i32>,
+    ) -> Result<HashMap<i32, InvestedTotals>, Error>;
+    async fn get_total_stellar_refunded_amounts(
+        &self,
+        op_ids: Vec<i32>,
+    ) -> Result<HashMap<i32, RefundedTotals>, Error>;
     async fn get_operation_participants(
         &self,
         op_ids: Vec<i32>,
@@ -268,6 +276,55 @@ impl ActivityStore for PgActivityStore {
                 COALESCE(SUM((data ->> 'shares_refunded')::BIGINT), 0)::TEXT AS total_shares_refunded
             FROM activity
             WHERE event_type = 'refunded' AND factory_op_id = ANY($1::INT[])
+            GROUP BY factory_op_id
+        "#;
+
+        let rows = sqlx::query_as::<_, RefundedTotals>(sql)
+            .bind(op_ids)
+            .fetch_all(self.db.pool())
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.factory_op_id, row))
+            .collect())
+    }
+
+    async fn get_total_stellar_invested_amounts(
+        &self,
+        op_ids: Vec<i32>,
+    ) -> Result<HashMap<i32, InvestedTotals>, Error> {
+        let sql = r#"
+            SELECT
+                factory_op_id,
+                COALESCE(SUM((data ->> 'usdc_amount')  ::BIGINT), 0)::TEXT AS total_usdc_amount,
+                COALESCE(SUM((data ->> 'shares_bought')::BIGINT), 0)::TEXT AS total_shares_bought
+            FROM activity
+            WHERE event_type = 'invested' AND factory_op_id = ANY($1::INT[]) AND chain_id = 0
+            GROUP BY factory_op_id
+        "#;
+        let rows = sqlx::query_as::<_, InvestedTotals>(sql)
+            .bind(op_ids)
+            .fetch_all(self.db.pool())
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.factory_op_id, row))
+            .collect())
+    }
+
+    async fn get_total_stellar_refunded_amounts(
+        &self,
+        op_ids: Vec<i32>,
+    ) -> Result<HashMap<i32, RefundedTotals>, Error> {
+        let sql = r#"
+            SELECT
+                factory_op_id,
+                COALESCE(SUM((data ->> 'usdc_amount')  ::BIGINT), 0)::TEXT AS total_usdc_amount,
+                COALESCE(SUM((data ->> 'shares_refunded')::BIGINT), 0)::TEXT AS total_shares_refunded
+            FROM activity
+            WHERE event_type = 'refunded' AND factory_op_id = ANY($1::INT[]) AND chain_id = 0
             GROUP BY factory_op_id
         "#;
 
