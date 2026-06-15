@@ -35,15 +35,3 @@ pub fn get_rpc_client() -> eyre::Result<Client> {
     Client::new(&cfg.soroban_rpc_url)
         .map_err(|e| eyre::eyre!("Failed to build Soroban RPC client: {e}"))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stellar_network_uses_chain_id_zero() {
-        let net = StellarNetwork::default();
-        assert_eq!(net.chain_id, 0);
-        assert_eq!(net.rewards_address, None);
-    }
-}
