@@ -70,7 +70,7 @@ golden!(
     op_created,
     factory_contract(),
     raw_event(
-        vec![sym("OperationCreated"), addr(FACTORY), u32v(FOP as u32)],
+        vec![sym("operation_created"), addr(FACTORY), u32v(FOP as u32)],
         data_map(&[("total_shares", i128v(1_000_000))]),
         FACTORY
     )
@@ -80,7 +80,7 @@ golden!(
     op_started,
     factory_contract(),
     raw_event(
-        vec![sym("OperationStarted"), u32v(FOP as u32)],
+        vec![sym("operation_started"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -90,7 +90,7 @@ golden!(
     op_paused,
     factory_contract(),
     raw_event(
-        vec![sym("OperationPaused"), u32v(FOP as u32)],
+        vec![sym("operation_paused"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -100,7 +100,7 @@ golden!(
     op_resumed,
     factory_contract(),
     raw_event(
-        vec![sym("OperationResumed"), u32v(FOP as u32)],
+        vec![sym("operation_resumed"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -110,7 +110,7 @@ golden!(
     op_canceled,
     factory_contract(),
     raw_event(
-        vec![sym("OperationCanceled"), u32v(FOP as u32)],
+        vec![sym("operation_canceled"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -120,7 +120,7 @@ golden!(
     op_finished,
     factory_contract(),
     raw_event(
-        vec![sym("OperationFinished"), u32v(FOP as u32)],
+        vec![sym("operation_finished"), u32v(FOP as u32)],
         data_map(&[("amount_raised_euro", i128v(5_000_000))]),
         FACTORY
     )
@@ -130,7 +130,7 @@ golden!(
     predeposits_open,
     factory_contract(),
     raw_event(
-        vec![sym("PredepositsOpen"), u32v(FOP as u32)],
+        vec![sym("predeposits_open"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -140,7 +140,7 @@ golden!(
     predeposits_closed,
     factory_contract(),
     raw_event(
-        vec![sym("PredepositsClosed"), u32v(FOP as u32)],
+        vec![sym("predeposits_closed"), u32v(FOP as u32)],
         data_map(&[]),
         FACTORY
     )
@@ -150,7 +150,7 @@ golden!(
     invested,
     factory_contract(),
     raw_event(
-        vec![sym("Invested"), addr(ACCOUNT_A), u32v(FOP as u32)],
+        vec![sym("invested"), addr(ACCOUNT_A), u32v(FOP as u32)],
         data_map(&[
             ("usdc_amount", i128v(1_000)),
             ("shares_bought", i128v(50))
@@ -164,7 +164,7 @@ golden!(
     factory_contract(),
     raw_event(
         vec![
-            sym("InvestedFiat"),
+            sym("invested_fiat"),
             addr(ACCOUNT_A),
             addr(ACCOUNT_B),
             u32v(FOP as u32)
@@ -178,7 +178,7 @@ golden!(
     claimed_op_token,
     factory_contract(),
     raw_event(
-        vec![sym("ClaimedOpToken"), addr(ACCOUNT_A), u32v(FOP as u32)],
+        vec![sym("claimed_op_token"), addr(ACCOUNT_A), u32v(FOP as u32)],
         data_map(&[("amount", i128v(50))]),
         FACTORY
     )
@@ -188,7 +188,7 @@ golden!(
     refunded,
     factory_contract(),
     raw_event(
-        vec![sym("Refunded"), addr(ACCOUNT_A), u32v(FOP as u32)],
+        vec![sym("refunded"), addr(ACCOUNT_A), u32v(FOP as u32)],
         data_map(&[
             ("usdc_amount", i128v(1_000)),
             ("shares_refunded", i128v(50))
@@ -218,7 +218,7 @@ golden!(
     claimed_rewards,
     factory_contract(),
     raw_event(
-        vec![sym("Claimed"), u32v(FOP as u32), addr(ACCOUNT_A)],
+        vec![sym("claimed"), u32v(FOP as u32), addr(ACCOUNT_A)],
         data_map(&[("balance", i128v(500))]),
         FACTORY
     )
@@ -228,7 +228,7 @@ golden!(
     claimed_ref_rewards,
     factory_contract(),
     raw_event(
-        vec![sym("ClaimedRef"), addr(ACCOUNT_A)],
+        vec![sym("claimed_ref"), addr(ACCOUNT_A)],
         data_map(&[("balance", i128v(250))]),
         FACTORY
     )
@@ -238,7 +238,7 @@ golden!(
     rewards_distributed,
     factory_contract(),
     raw_event(
-        vec![sym("RewardsDistributed"), u32v(FOP as u32), u32v(3)],
+        vec![sym("rewards_distributed"), u32v(FOP as u32), u32v(3)],
         data_map(&[("amount", i128v(1_000))]),
         FACTORY
     )
@@ -248,7 +248,7 @@ golden!(
     ref_rewards_distributed,
     factory_contract(),
     raw_event(
-        vec![sym("RefRewardsDistributed"), u32v(3)],
+        vec![sym("ref_rewards_distributed"), u32v(3)],
         data_map(&[("amount", i128v(800))]),
         FACTORY
     )
@@ -258,7 +258,7 @@ golden!(
 #[tokio::test]
 async fn gifted_is_unindexed() {
     let raw = raw_event(
-        vec![sym("Gifted"), addr(ACCOUNT_A), u32v(FOP as u32)],
+        vec![sym("gifted"), addr(ACCOUNT_A), u32v(FOP as u32)],
         data_map(&[("usdc_amount", i128v(1)), ("shares_bought", i128v(1))]),
         FACTORY,
     );

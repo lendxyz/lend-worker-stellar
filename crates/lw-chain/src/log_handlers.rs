@@ -30,7 +30,7 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
     };
 
     match name.as_str() {
-        "OperationCreated" => Ok(ContractEvent::OpCreated {
+        "operation_created" => Ok(ContractEvent::OpCreated {
             op_token: as_address(tg(1)?)?,
             operation_id: as_u32(tg(2)?)?,
             total_shares: as_i128(map_field(
@@ -38,32 +38,32 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 "total_shares",
             )?)?,
         }),
-        "OperationStarted" => Ok(ContractEvent::OpStarted {
+        "operation_started" => Ok(ContractEvent::OpStarted {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "OperationCanceled" => Ok(ContractEvent::OpCanceled {
+        "operation_canceled" => Ok(ContractEvent::OpCanceled {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "OperationPaused" => Ok(ContractEvent::OpPaused {
+        "operation_paused" => Ok(ContractEvent::OpPaused {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "OperationResumed" => Ok(ContractEvent::OpResumed {
+        "operation_resumed" => Ok(ContractEvent::OpResumed {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "OperationFinished" => Ok(ContractEvent::OpFinished {
+        "operation_finished" => Ok(ContractEvent::OpFinished {
             operation_id: as_u32(tg(1)?)?,
             amount_raised_euro: as_i128(map_field(
                 as_map(&raw.value)?,
                 "amount_raised_euro",
             )?)?,
         }),
-        "PredepositsOpen" => Ok(ContractEvent::OpPredepositsOpen {
+        "predeposits_open" => Ok(ContractEvent::OpPredepositsOpen {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "PredepositsClosed" => Ok(ContractEvent::OpPredepositsClosed {
+        "predeposits_closed" => Ok(ContractEvent::OpPredepositsClosed {
             operation_id: as_u32(tg(1)?)?,
         }),
-        "Invested" => {
+        "invested" => {
             let m = as_map(&raw.value)?;
             Ok(ContractEvent::Invested {
                 investor: as_address(tg(1)?)?,
@@ -72,7 +72,7 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 shares_bought: as_i128(map_field(m, "shares_bought")?)?,
             })
         }
-        "InvestedFiat" => Ok(ContractEvent::InvestedFiat {
+        "invested_fiat" => Ok(ContractEvent::InvestedFiat {
             investor: as_address(tg(1)?)?,
             oplend_destination: as_address(tg(2)?)?,
             operation_id: as_u32(tg(3)?)?,
@@ -81,12 +81,12 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 "shares_bought",
             )?)?,
         }),
-        "ClaimedOpToken" => Ok(ContractEvent::ClaimedTokens {
+        "claimed_op_token" => Ok(ContractEvent::ClaimedTokens {
             investor: as_address(tg(1)?)?,
             operation_id: as_u32(tg(2)?)?,
             amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
         }),
-        "Refunded" => {
+        "refunded" => {
             let m = as_map(&raw.value)?;
             Ok(ContractEvent::Refunded {
                 investor: as_address(tg(1)?)?,
@@ -106,21 +106,21 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
             })
         }
         // Rewards contract events.
-        "Claimed" => Ok(ContractEvent::ClaimedRewards {
+        "claimed" => Ok(ContractEvent::ClaimedRewards {
             op_id: as_u32(tg(1)?)?,
             user: as_address(tg(2)?)?,
             balance: as_i128(map_field(as_map(&raw.value)?, "balance")?)?,
         }),
-        "ClaimedRef" => Ok(ContractEvent::ClaimedRefRewards {
+        "claimed_ref" => Ok(ContractEvent::ClaimedRefRewards {
             user: as_address(tg(1)?)?,
             balance: as_i128(map_field(as_map(&raw.value)?, "balance")?)?,
         }),
-        "RewardsDistributed" => Ok(ContractEvent::RewardsDistributed {
+        "rewards_distributed" => Ok(ContractEvent::RewardsDistributed {
             op_id: as_u32(tg(1)?)?,
             epoch: as_u32(tg(2)?)?,
             amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
         }),
-        "RefRewardsDistributed" => Ok(ContractEvent::RefRewardsDistributed {
+        "ref_rewards_distributed" => Ok(ContractEvent::RefRewardsDistributed {
             epoch: as_u32(tg(1)?)?,
             amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
         }),
