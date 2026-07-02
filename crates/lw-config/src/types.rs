@@ -66,16 +66,8 @@ pub enum ContractEvent {
         user: String,
         balance: i128,
     },
-    ClaimedRefRewards {
-        user: String,
-        balance: i128,
-    },
     RewardsDistributed {
         op_id: u32,
-        epoch: u32,
-        amount: i128,
-    },
-    RefRewardsDistributed {
         epoch: u32,
         amount: i128,
     },

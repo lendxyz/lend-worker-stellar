@@ -111,17 +111,9 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
             user: as_address(tg(2)?)?,
             balance: as_i128(map_field(as_map(&raw.value)?, "balance")?)?,
         }),
-        "claimed_ref" => Ok(ContractEvent::ClaimedRefRewards {
-            user: as_address(tg(1)?)?,
-            balance: as_i128(map_field(as_map(&raw.value)?, "balance")?)?,
-        }),
         "rewards_distributed" => Ok(ContractEvent::RewardsDistributed {
             op_id: as_u32(tg(1)?)?,
             epoch: as_u32(tg(2)?)?,
-            amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
-        }),
-        "ref_rewards_distributed" => Ok(ContractEvent::RefRewardsDistributed {
-            epoch: as_u32(tg(1)?)?,
             amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
         }),
         other => Err(eyre!("unindexed event `{other}`")),

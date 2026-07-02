@@ -217,21 +217,6 @@ pub fn build_activity(
                 .build(),
             ])
         }
-        // Referral rewards are not tied to an operation.
-        ContractEvent::ClaimedRefRewards { user, balance } => Some(vec![
-            ActivityBuilder::new(
-                ActivityEventType::ClaimedRefRewards,
-                block_number,
-            )
-            .block_timestamp(block_timestamp)
-            .event_hash(format!("{tx_hash}#lend_ref_rewards_claimed"))
-            .user_address(Some(user))
-            .data(json!({
-                "tx_hash": tx_hash,
-                "usdc_amount": balance.to_string(),
-            }))
-            .build(),
-        ]),
         ContractEvent::RewardsDistributed {
             op_id,
             epoch,
@@ -256,20 +241,6 @@ pub fn build_activity(
                 .build(),
             ])
         }
-        ContractEvent::RefRewardsDistributed { epoch, amount } => Some(vec![
-            ActivityBuilder::new(
-                ActivityEventType::RefRewardsDistributed,
-                block_number,
-            )
-            .block_timestamp(block_timestamp)
-            .event_hash(format!("{tx_hash}#lend_ref_rewards_distributed"))
-            .data(json!({
-                "tx_hash": tx_hash,
-                "usdc_amount": amount.to_string(),
-                "epoch": epoch.to_string(),
-            }))
-            .build(),
-        ]),
         // I/O variants handled in lw_chain::log_handlers::handle_event.
         _ => None,
     }

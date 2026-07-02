@@ -225,31 +225,11 @@ golden!(
 );
 
 golden!(
-    claimed_ref_rewards,
-    factory_contract(),
-    raw_event(
-        vec![sym("claimed_ref"), addr(ACCOUNT_A)],
-        data_map(&[("balance", i128v(250))]),
-        FACTORY
-    )
-);
-
-golden!(
     rewards_distributed,
     factory_contract(),
     raw_event(
         vec![sym("rewards_distributed"), u32v(FOP as u32), u32v(3)],
         data_map(&[("amount", i128v(1_000))]),
-        FACTORY
-    )
-);
-
-golden!(
-    ref_rewards_distributed,
-    factory_contract(),
-    raw_event(
-        vec![sym("ref_rewards_distributed"), u32v(3)],
-        data_map(&[("amount", i128v(800))]),
         FACTORY
     )
 );

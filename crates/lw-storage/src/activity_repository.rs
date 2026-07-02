@@ -159,7 +159,7 @@ impl ActivityStore for PgActivityStore {
             AS max_block_number
             FROM activity
             WHERE chain_id = $1
-            AND event_type IN ('claimed_rewards', 'claimed_ref_rewards', 'rewards_distributed', 'ref_rewards_distributed')
+            AND event_type IN ('claimed_rewards', 'rewards_distributed')
         "#;
 
         match sqlx::query_as::<_, LatestActivityBlocks>(sql)

@@ -41,11 +41,10 @@ CREATE TYPE operation_category AS ENUM (
 
 CREATE TYPE activity_event_type AS ENUM (
     'invested', 'refunded', 'invested_fiat', 'claimed_rewards',
-    'claimed_ref_rewards', 'claimed_op_token', 'rewards_distributed',
-    'ref_rewards_distributed', 'op_lend_bridged', 'op_lend_transfered',
+    'claimed_op_token', 'rewards_distributed', 'op_lend_bridged',
     'op_lend_peer_added', 'op_paused', 'op_resumed', 'op_predeposits_open',
     'op_predeposits_closed', 'op_created', 'op_started', 'op_canceled',
-    'op_finished', 'order_filled', 'order_cancelled'
+    'op_finished', 'order_filled', 'order_cancelled', 'op_lend_transfered'
 );
 
 CREATE TYPE order_status AS ENUM ('filled', 'open', 'cancelled');
