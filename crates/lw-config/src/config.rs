@@ -47,6 +47,7 @@ pub struct LocalEnv {
     pub fiat_safe_address: String,
     pub soroban_rpc_url: String,
     pub backfill_source_url: String,
+    pub backfill_max_span: i32,
     pub start_ledger: i32,
     pub poll_interval_ms: u64,
     pub chain_id: i32,
@@ -82,6 +83,9 @@ impl LocalEnv {
                 "https://soroban-testnet.stellar.org",
             ),
             backfill_source_url: get_env("BACKFILL_SOURCE_URL"),
+            backfill_max_span: get_env("BACKFILL_MAX_SPAN")
+                .parse()
+                .unwrap_or(120_000),
             start_ledger: get_env("START_LEDGER").parse().unwrap_or(0),
             poll_interval_ms: get_env("POLL_INTERVAL_MS")
                 .parse()

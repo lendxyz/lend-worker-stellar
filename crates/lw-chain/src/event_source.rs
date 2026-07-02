@@ -38,6 +38,26 @@ pub fn event_index_from_id(id: &str) -> i32 {
         .unwrap_or(0) as i32
 }
 
+/// Parse the RPC "startLedger must be within the ledger range: LOW - HIGH"
+/// rejection into `(low, high)`. Returns `None` for any other error. Lets the
+/// event loop detect that its cursor fell behind live-RPC retention (cursor <
+/// low) and switch to the backfill source for the gap.
+pub fn parse_ledger_range(err: &str) -> Option<(i32, i32)> {
+    fn leading_i32(s: &str) -> Option<i32> {
+        s.trim()
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse()
+            .ok()
+    }
+    let tail = err.split("ledger range:").nth(1)?;
+    let mut parts = tail.splitn(2, '-');
+    let low = leading_i32(parts.next()?)?;
+    let high = leading_i32(parts.next()?)?;
+    Some((low, high))
+}
+
 /// A source of Soroban events. `RpcEventSource` = live tail; `BackfillSource` =
 /// history beyond RPC retention.
 #[async_trait]
@@ -208,5 +228,14 @@ mod tests {
     fn event_index_parsed_from_id_suffix() {
         assert_eq!(event_index_from_id("0001234567-0000000009"), 9);
         assert_eq!(event_index_from_id("garbage"), 0);
+    }
+
+    #[test]
+    fn parses_retention_range_from_rpc_error() {
+        let err = "getEvents failed: ErrorObject { code: InvalidRequest, \
+                   message: \"startLedger must be within the ledger range: \
+                   3276662 - 3397621\", data: None }";
+        assert_eq!(parse_ledger_range(err), Some((3_276_662, 3_397_621)));
+        assert_eq!(parse_ledger_range("some other transport error"), None);
     }
 }
