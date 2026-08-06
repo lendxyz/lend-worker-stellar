@@ -63,14 +63,20 @@ pub fn parse_ledger_range(err: &str) -> Option<(i32, i32)> {
 #[async_trait]
 pub trait EventSource: Send + Sync {
     /// Fetch all events at/after `start_ledger` for `contract_ids` (paging
-    /// internally until exhausted). Returns the decoded events and the ledger to
-    /// resume from on the next call.
+    /// internally until exhausted, splitting the contract set across requests
+    /// when the transport caps ids per request). Returns the decoded events in
+    /// chain order and the ledger to resume from on the next call.
     async fn fetch(
         &self,
         start_ledger: i32,
         contract_ids: &[String],
     ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)>;
 }
+
+/// Soroban RPC rejects any `getEvents` filter carrying more than 5 contract ids
+/// ("filter 1 invalid: maximum 5 contract IDs per filter"), and the client emits
+/// exactly one filter per request, so larger contract sets are swept in batches.
+const MAX_CONTRACT_IDS_PER_FILTER: usize = 5;
 
 /// Live tail backed by Soroban RPC `getEvents`.
 pub struct RpcEventSource {
@@ -112,17 +118,18 @@ impl RpcEventSource {
             ledger_closed_at: parse_ledger_time(ledger_closed_at),
         })
     }
-}
 
-#[async_trait]
-impl EventSource for RpcEventSource {
-    async fn fetch(
+    /// One `getEvents` sweep for at most `MAX_CONTRACT_IDS_PER_FILTER`
+    /// contracts, paging until exhausted. Appends `(event id, event)` pairs to
+    /// `out` — the id doubles as the chain-order sort key — and returns the
+    /// ledger this batch must resume from.
+    async fn fetch_batch(
         &self,
         start_ledger: i32,
         contract_ids: &[String],
-    ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)> {
-        let mut out = Vec::new();
-        let mut max_ledger = start_ledger;
+        out: &mut Vec<(String, RawSorobanEvent)>,
+    ) -> eyre::Result<i32> {
+        let mut max_ledger: Option<i32> = None;
         #[allow(unused_assignments)]
         let mut latest_ledger = start_ledger;
         let mut start = EventStart::Ledger(start_ledger as u32);
@@ -143,17 +150,21 @@ impl EventSource for RpcEventSource {
             let page_len = resp.events.len();
             for e in &resp.events {
                 let ledger_seq = e.ledger as i32;
-                max_ledger = max_ledger.max(ledger_seq);
+                max_ledger =
+                    Some(max_ledger.map_or(ledger_seq, |m| m.max(ledger_seq)));
                 let tx_hash = e.tx_hash.clone().unwrap_or_else(|| e.id.clone());
-                out.push(Self::to_raw(
-                    tx_hash,
-                    event_index_from_id(&e.id),
-                    e.contract_id.clone(),
-                    &e.topic,
-                    &e.value,
-                    ledger_seq,
-                    &e.ledger_closed_at,
-                )?);
+                out.push((
+                    e.id.clone(),
+                    Self::to_raw(
+                        tx_hash,
+                        event_index_from_id(&e.id),
+                        e.contract_id.clone(),
+                        &e.topic,
+                        &e.value,
+                        ledger_seq,
+                        &e.ledger_closed_at,
+                    )?,
+                ));
             }
             // Page until exhausted (no silent truncation): a full page means more may exist.
             if page_len < self.page_limit || resp.cursor.is_empty() {
@@ -164,12 +175,39 @@ impl EventSource for RpcEventSource {
 
         // Resume one past the highest event ledger; if none, jump to the chain
         // tip so we don't re-scan the same empty range forever.
-        let next = if out.is_empty() {
-            (latest_ledger + 1).max(start_ledger)
-        } else {
-            max_ledger + 1
-        };
-        Ok((out, next))
+        Ok(match max_ledger {
+            Some(m) => m + 1,
+            None => (latest_ledger + 1).max(start_ledger),
+        })
+    }
+}
+
+#[async_trait]
+impl EventSource for RpcEventSource {
+    async fn fetch(
+        &self,
+        start_ledger: i32,
+        contract_ids: &[String],
+    ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)> {
+        let mut merged: Vec<(String, RawSorobanEvent)> = Vec::new();
+        // Resume from the lowest batch cursor: batches observe slightly
+        // different chain tips, and a higher cursor would skip ledgers for the
+        // batches lagging it. Overlapping re-reads are idempotent downstream.
+        let mut next: Option<i32> = None;
+
+        for batch in contract_ids.chunks(MAX_CONTRACT_IDS_PER_FILTER) {
+            let batch_next =
+                self.fetch_batch(start_ledger, batch, &mut merged).await?;
+            next = Some(next.map_or(batch_next, |n| n.min(batch_next)));
+        }
+
+        // Restore chain order across batches: RPC event ids are fixed-width and
+        // zero-padded, so (ledger, id) orders by ledger then tx/event position.
+        merged.sort_unstable_by(|a, b| {
+            (a.1.ledger_seq, &a.0).cmp(&(b.1.ledger_seq, &b.0))
+        });
+        let events = merged.into_iter().map(|(_, e)| e).collect();
+        Ok((events, next.unwrap_or(start_ledger)))
     }
 }
 
