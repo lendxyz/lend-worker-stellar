@@ -18,8 +18,10 @@ pub enum ActivityEventType {
     InvestedFiat,
     Refunded,
     ClaimedRewards,
+    ClaimedRefRewards,
     ClaimedOpToken,
     RewardsDistributed,
+    RefRewardsDistributed,
     OpLendBridged,
     OpLendTransfered, // singular "r" at transferred because of typo in DB defs :(
     OpLendPeerAdded,
@@ -33,6 +35,9 @@ pub enum ActivityEventType {
     OpFinished,
     OrderFilled,
     OrderCancelled,
+    RestitutionOpened,
+    RestitutionClaimed,
+    RestitutionClosed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

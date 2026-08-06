@@ -17,6 +17,8 @@ pub enum FundingStatus {
     Predeposit,
     Upcoming,
     Canceled,
+    Redemption,
+    Closed,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
