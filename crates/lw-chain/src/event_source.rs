@@ -82,8 +82,6 @@ pub trait EventSource: Send + Sync {
 /// exactly one filter per request, so larger contract sets are swept in batches.
 const MAX_CONTRACT_IDS_PER_FILTER: usize = 5;
 
-<<<<<<< HEAD
-=======
 /// Retry budget per `getEvents` request when the RPC fails transiently. Batching
 /// turns one sweep into several requests, so an unretried blip would discard
 /// every batch already fetched and stall the cursor for a whole poll.
@@ -122,7 +120,6 @@ fn is_transient_rpc_error(err: &str) -> bool {
     TRANSIENT.iter().any(|needle| err.contains(needle))
 }
 
->>>>>>> develop
 /// Live tail backed by Soroban RPC `getEvents`.
 pub struct RpcEventSource {
     client: Client,
@@ -164,32 +161,15 @@ impl RpcEventSource {
         })
     }
 
-<<<<<<< HEAD
-    /// One `getEvents` sweep for at most `MAX_CONTRACT_IDS_PER_FILTER`
-    /// contracts, paging until exhausted. Appends `(event id, event)` pairs to
-    /// `out` — the id doubles as the chain-order sort key — and returns the
-    /// ledger this batch must resume from.
-    async fn fetch_batch(
-=======
     /// Single `getEvents` request, retried on transient transport failures with
     /// exponential backoff. Non-transient errors return on the first attempt.
     async fn get_events_retrying(
->>>>>>> develop
         &self,
         start: &EventStart,
         contract_ids: &[String],
-<<<<<<< HEAD
-        out: &mut Vec<(String, RawSorobanEvent)>,
-    ) -> eyre::Result<i32> {
-        let mut max_ledger: Option<i32> = None;
-        #[allow(unused_assignments)]
-        let mut latest_ledger = start_ledger;
-        let mut start = EventStart::Ledger(start_ledger as u32);
-=======
     ) -> eyre::Result<GetEventsResponse> {
         let mut backoff = RPC_BACKOFF_BASE;
         let mut retries = 0;
->>>>>>> develop
 
         loop {
             let err = match self
