@@ -1,10 +1,14 @@
+use std::time::Duration;
+
 use chrono::{DateTime, TimeZone, Utc};
 use stellar_xdr::ScVal;
 
 use async_trait::async_trait;
 use eyre::eyre;
-use stellar_rpc_client::{Client, EventStart, EventType};
+use log::warn;
+use stellar_rpc_client::{Client, EventStart, EventType, GetEventsResponse};
 use stellar_xdr::{Limits, ReadXdr};
+use tokio::time::sleep;
 
 /// SDK-agnostic event passed into decoding. Built from the RPC `getEvents`
 /// response or the backfill source (later tasks).
@@ -63,13 +67,57 @@ pub fn parse_ledger_range(err: &str) -> Option<(i32, i32)> {
 #[async_trait]
 pub trait EventSource: Send + Sync {
     /// Fetch all events at/after `start_ledger` for `contract_ids` (paging
-    /// internally until exhausted). Returns the decoded events and the ledger to
-    /// resume from on the next call.
+    /// internally until exhausted, splitting the contract set across requests
+    /// when the transport caps ids per request). Returns the decoded events in
+    /// chain order and the ledger to resume from on the next call.
     async fn fetch(
         &self,
         start_ledger: i32,
         contract_ids: &[String],
     ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)>;
+}
+
+/// Soroban RPC rejects any `getEvents` filter carrying more than 5 contract ids
+/// ("filter 1 invalid: maximum 5 contract IDs per filter"), and the client emits
+/// exactly one filter per request, so larger contract sets are swept in batches.
+const MAX_CONTRACT_IDS_PER_FILTER: usize = 5;
+
+/// Retry budget per `getEvents` request when the RPC fails transiently. Batching
+/// turns one sweep into several requests, so an unretried blip would discard
+/// every batch already fetched and stall the cursor for a whole poll.
+const RPC_MAX_RETRIES: u32 = 10;
+/// First backoff step; doubles per retry, capped at `RPC_BACKOFF_CAP`
+/// (250ms, 500ms, 1s, 2s, 4s, then 5s -> ~32s of cover across 10 retries).
+const RPC_BACKOFF_BASE: Duration = Duration::from_millis(250);
+const RPC_BACKOFF_CAP: Duration = Duration::from_secs(5);
+
+/// Is this RPC failure worth retrying in place? Only transport-level faults are:
+/// HTTP 429/5xx rejections, request timeouts and dropped connections. JSON-RPC
+/// application errors (bad params, `startLedger` outside retention) are
+/// permanent for this request and MUST surface immediately so the event loop can
+/// react — e.g. learn the retention floor — instead of burning the whole retry
+/// budget on a doomed request.
+fn is_transient_rpc_error(err: &str) -> bool {
+    // jsonrpsee transport rejection: "Request rejected `503`".
+    if let Some(code) = err
+        .split("Request rejected `")
+        .nth(1)
+        .and_then(|rest| rest.split('`').next())
+        .and_then(|code| code.parse::<u16>().ok())
+    {
+        return code == 429 || (500..600).contains(&code);
+    }
+    const TRANSIENT: [&str; 8] = [
+        "Request timeout",
+        "error sending request",
+        "connection closed",
+        "connection reset",
+        "connection refused",
+        "broken pipe",
+        "operation timed out",
+        "dns error",
+    ];
+    TRANSIENT.iter().any(|needle| err.contains(needle))
 }
 
 /// Live tail backed by Soroban RPC `getEvents`.
@@ -112,48 +160,82 @@ impl RpcEventSource {
             ledger_closed_at: parse_ledger_time(ledger_closed_at),
         })
     }
-}
 
-#[async_trait]
-impl EventSource for RpcEventSource {
-    async fn fetch(
+    /// Single `getEvents` request, retried on transient transport failures with
+    /// exponential backoff. Non-transient errors return on the first attempt.
+    async fn get_events_retrying(
         &self,
-        start_ledger: i32,
+        start: &EventStart,
         contract_ids: &[String],
-    ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)> {
-        let mut out = Vec::new();
-        let mut max_ledger = start_ledger;
-        #[allow(unused_assignments)]
-        let mut latest_ledger = start_ledger;
-        let mut start = EventStart::Ledger(start_ledger as u32);
+    ) -> eyre::Result<GetEventsResponse> {
+        let mut backoff = RPC_BACKOFF_BASE;
+        let mut retries = 0;
 
         loop {
-            let resp = self
+            let err = match self
                 .client
                 .get_events(
-                    start,
+                    start.clone(),
                     Some(EventType::Contract),
                     contract_ids,
                     &[],
                     Some(self.page_limit),
                 )
                 .await
-                .map_err(|e| eyre!("getEvents failed: {e}"))?;
+            {
+                Ok(resp) => return Ok(resp),
+                Err(e) => e.to_string(),
+            };
+            if retries == RPC_MAX_RETRIES || !is_transient_rpc_error(&err) {
+                return Err(eyre!("getEvents failed: {err}"));
+            }
+            retries += 1;
+            warn!(
+                "[event_source] transient getEvents failure ({err}); retry \
+                 {retries}/{RPC_MAX_RETRIES} in {}ms",
+                backoff.as_millis()
+            );
+            sleep(backoff).await;
+            backoff = (backoff * 2).min(RPC_BACKOFF_CAP);
+        }
+    }
+
+    /// One `getEvents` sweep for at most `MAX_CONTRACT_IDS_PER_FILTER`
+    /// contracts, paging until exhausted. Appends `(event id, event)` pairs to
+    /// `out` — the id doubles as the chain-order sort key — and returns the
+    /// ledger this batch must resume from.
+    async fn fetch_batch(
+        &self,
+        start_ledger: i32,
+        contract_ids: &[String],
+        out: &mut Vec<(String, RawSorobanEvent)>,
+    ) -> eyre::Result<i32> {
+        let mut max_ledger: Option<i32> = None;
+        #[allow(unused_assignments)]
+        let mut latest_ledger = start_ledger;
+        let mut start = EventStart::Ledger(start_ledger as u32);
+
+        loop {
+            let resp = self.get_events_retrying(&start, contract_ids).await?;
             latest_ledger = resp.latest_ledger as i32;
             let page_len = resp.events.len();
             for e in &resp.events {
                 let ledger_seq = e.ledger as i32;
-                max_ledger = max_ledger.max(ledger_seq);
+                max_ledger =
+                    Some(max_ledger.map_or(ledger_seq, |m| m.max(ledger_seq)));
                 let tx_hash = e.tx_hash.clone().unwrap_or_else(|| e.id.clone());
-                out.push(Self::to_raw(
-                    tx_hash,
-                    event_index_from_id(&e.id),
-                    e.contract_id.clone(),
-                    &e.topic,
-                    &e.value,
-                    ledger_seq,
-                    &e.ledger_closed_at,
-                )?);
+                out.push((
+                    e.id.clone(),
+                    Self::to_raw(
+                        tx_hash,
+                        event_index_from_id(&e.id),
+                        e.contract_id.clone(),
+                        &e.topic,
+                        &e.value,
+                        ledger_seq,
+                        &e.ledger_closed_at,
+                    )?,
+                ));
             }
             // Page until exhausted (no silent truncation): a full page means more may exist.
             if page_len < self.page_limit || resp.cursor.is_empty() {
@@ -164,12 +246,39 @@ impl EventSource for RpcEventSource {
 
         // Resume one past the highest event ledger; if none, jump to the chain
         // tip so we don't re-scan the same empty range forever.
-        let next = if out.is_empty() {
-            (latest_ledger + 1).max(start_ledger)
-        } else {
-            max_ledger + 1
-        };
-        Ok((out, next))
+        Ok(match max_ledger {
+            Some(m) => m + 1,
+            None => (latest_ledger + 1).max(start_ledger),
+        })
+    }
+}
+
+#[async_trait]
+impl EventSource for RpcEventSource {
+    async fn fetch(
+        &self,
+        start_ledger: i32,
+        contract_ids: &[String],
+    ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)> {
+        let mut merged: Vec<(String, RawSorobanEvent)> = Vec::new();
+        // Resume from the lowest batch cursor: batches observe slightly
+        // different chain tips, and a higher cursor would skip ledgers for the
+        // batches lagging it. Overlapping re-reads are idempotent downstream.
+        let mut next: Option<i32> = None;
+
+        for batch in contract_ids.chunks(MAX_CONTRACT_IDS_PER_FILTER) {
+            let batch_next =
+                self.fetch_batch(start_ledger, batch, &mut merged).await?;
+            next = Some(next.map_or(batch_next, |n| n.min(batch_next)));
+        }
+
+        // Restore chain order across batches: RPC event ids are fixed-width and
+        // zero-padded, so (ledger, id) orders by ledger then tx/event position.
+        merged.sort_unstable_by(|a, b| {
+            (a.1.ledger_seq, &a.0).cmp(&(b.1.ledger_seq, &b.0))
+        });
+        let events = merged.into_iter().map(|(_, e)| e).collect();
+        Ok((events, next.unwrap_or(start_ledger)))
     }
 }
 
@@ -237,5 +346,30 @@ mod tests {
                    3276662 - 3397621\", data: None }";
         assert_eq!(parse_ledger_range(err), Some((3_276_662, 3_397_621)));
         assert_eq!(parse_ledger_range("some other transport error"), None);
+    }
+
+    #[test]
+    fn retries_only_transport_level_rpc_failures() {
+        // The 503 seen in production, plus throttling and dropped connections.
+        assert!(is_transient_rpc_error(
+            "getEvents failed: Request rejected `503`"
+        ));
+        assert!(is_transient_rpc_error("Request rejected `429`"));
+        assert!(is_transient_rpc_error("Request timeout"));
+        assert!(is_transient_rpc_error(
+            "error sending request for url (...)"
+        ));
+        // Client-side rejections are permanent for this request.
+        assert!(!is_transient_rpc_error("Request rejected `400`"));
+        assert!(!is_transient_rpc_error(
+            "ErrorObject { code: InvalidParams, message: \"filter 1 invalid: \
+             maximum 5 contract IDs per filter\", data: None }"
+        ));
+        // Must stay non-transient: the event loop parses this to learn the
+        // retention floor and switch to backfill. Retrying would stall that.
+        assert!(!is_transient_rpc_error(
+            "ErrorObject { code: InvalidRequest, message: \"startLedger must \
+             be within the ledger range: 3276662 - 3397621\", data: None }"
+        ));
     }
 }
