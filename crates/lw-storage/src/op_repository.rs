@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use log::error;
-use serde_json::{Value, json};
 use sqlx::Error;
 use sqlx::postgres::PgQueryResult;
 use sqlx::prelude::FromRow;
@@ -12,8 +11,7 @@ use lw_config::config::STELLAR_CHAIN_ID;
 use lw_domain::activity_model::{
     ActivityEventType, OpCreatedEventData, activity_event_to_funding_status,
 };
-use lw_domain::op_model::{FundingStatus, Operation, SupportedChains};
-use sqlx::types::Json;
+use lw_domain::op_model::{FundingStatus, Operation};
 
 use super::helpers::{Database, get_database};
 
@@ -68,11 +66,6 @@ struct ActiveOperationsQuery {
 #[derive(Debug, Clone, FromRow)]
 struct OperationIdQuery {
     op_id: Uuid,
-}
-
-#[derive(Debug, Clone, FromRow)]
-struct SupportedChainsQuery {
-    supported_chains: Json<Vec<SupportedChains>>,
 }
 
 #[derive(Debug, Clone)]
@@ -278,83 +271,51 @@ impl OperationStore for PgOperationStore {
         op_id: i32,
         d: serde_json::Value,
     ) -> Result<PgQueryResult, Error> {
-        let data_wrapped = serde_json::from_value::<OpCreatedEventData>(d);
-        if let Ok(data) = data_wrapped {
-            // Existing supported_chains for this operation, if the row exists.
-            let existing = sqlx::query_as::<_, SupportedChainsQuery>(
-                "SELECT supported_chains
-                FROM operations
-                WHERE factory_op_id = $1",
-            )
-            .bind(op_id)
-            .fetch_optional(self.db.pool())
-            .await?;
-
-            let has_primary = existing
-                .as_ref()
-                .map(|row| row.supported_chains.0.iter().any(|c| c.primary))
-                .unwrap_or(false);
-
-            if has_primary {
-                let mut supported_chains: Vec<Value> = existing
-                    .map(|row| row.supported_chains.0)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|c| json!(c))
-                    .collect();
-
-                supported_chains.push(json!({
-                    "op_token": &data.op_token,
-                    "chain_id": STELLAR_CHAIN_ID,
-                    "lz_endpoint_id": 0,
-                    "primary": false,
-                }));
-
-                let sql = r#"
-                    UPDATE operations
-                    SET supported_chains = $1,
-                        stellar_shares = $2,
-                        total_shares =
-                            (COALESCE(total_shares, '0')::NUMERIC + $2::NUMERIC)::TEXT
-                    WHERE factory_op_id = $3
-                "#;
-
-                return sqlx::query(sql)
-                    .bind(json!(supported_chains))
-                    .bind(data.total_shares)
-                    .bind(op_id)
-                    .execute(self.db.pool())
-                    .await;
+        let data = match serde_json::from_value::<OpCreatedEventData>(d) {
+            Ok(data) => data,
+            Err(err) => {
+                error!(
+                    "[OpRepository::update_operation_total_shares] Failed to deserialize OpCreatedEventData: {err:?}"
+                );
+                return Err(Error::Protocol(err.to_string()));
             }
+        };
 
-            let mut supported_chains: Vec<Value> = vec![];
+        let sql = r#"
+            UPDATE operations
+            SET supported_chains = COALESCE(supported_chains, '[]'::JSONB)
+                    || jsonb_build_object(
+                        'op_token', $1::TEXT,
+                        'chain_id', $2::INT,
+                        'lz_endpoint_id', 0,
+                        'primary', NOT (
+                            COALESCE(supported_chains, '[]'::JSONB)
+                                @> '[{"primary": true}]'::JSONB
+                        )
+                    ),
+                stellar_shares = $3,
+                total_shares = (
+                    COALESCE(NULLIF(total_shares, ''), '0')::NUMERIC
+                        + $3::NUMERIC
+                )::TEXT
+            WHERE factory_op_id = $4
+            AND NOT (
+                COALESCE(supported_chains, '[]'::JSONB) @> jsonb_build_array(
+                    jsonb_build_object(
+                        'op_token', $1::TEXT,
+                        'chain_id', $2::INT
+                    )
+                )
+            )
+        "#;
 
-            supported_chains.push(json!({
-                "op_token": &data.op_token,
-                "chain_id": STELLAR_CHAIN_ID,
-                "lz_endpoint_id": 0,
-                "primary": true,
-            }));
-
-            let sql = r#"
-                UPDATE operations
-                SET total_shares = $1, stellar_shares = $1, supported_chains = $2
-                WHERE factory_op_id = $3
-            "#;
-
-            return sqlx::query(sql)
-                .bind(data.total_shares)
-                .bind(json!(supported_chains))
-                .bind(op_id)
-                .execute(self.db.pool())
-                .await;
-        }
-
-        error!(
-            "[OpRepository::update_operation_total_shares] Failed to deserialize OpCreatedEventData: {:?}",
-            data_wrapped.err()
-        );
-        Err(Error::Protocol("".to_string()))
+        sqlx::query(sql)
+            .bind(data.op_token.as_str())
+            .bind(STELLAR_CHAIN_ID)
+            .bind(data.total_shares.as_str())
+            .bind(op_id)
+            .execute(self.db.pool())
+            .await
     }
 
     async fn add_supported_chain(
