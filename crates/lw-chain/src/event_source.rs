@@ -5,7 +5,7 @@ use stellar_xdr::ScVal;
 
 use async_trait::async_trait;
 use eyre::eyre;
-use log::warn;
+use log::{debug, warn};
 use stellar_rpc_client::{Client, EventStart, EventType, GetEventsResponse};
 use stellar_xdr::{Limits, ReadXdr};
 use tokio::time::sleep;
@@ -60,6 +60,18 @@ pub fn parse_ledger_range(err: &str) -> Option<(i32, i32)> {
     let low = leading_i32(parts.next()?)?;
     let high = leading_i32(parts.next()?)?;
     Some((low, high))
+}
+
+/// `Some(tip)` when the RPC rejected `start_ledger` for sitting *past* the
+/// chain tip rather than below the retention floor. Tailing resumes one ledger
+/// beyond the last one observed, so a cursor at `tip + 1` is the normal steady
+/// state between ledger closes: the request is rejected, but there is nothing
+/// to fetch and nothing is wrong.
+fn rejected_above_tip(err: &str, start_ledger: i32) -> Option<i32> {
+    match parse_ledger_range(err) {
+        Some((_, high)) if start_ledger > high => Some(high),
+        _ => None,
+    }
 }
 
 /// A source of Soroban events. `RpcEventSource` = live tail; `BackfillSource` =
@@ -216,7 +228,41 @@ impl RpcEventSource {
         let mut start = EventStart::Ledger(start_ledger as u32);
 
         loop {
-            let resp = self.get_events_retrying(&start, contract_ids).await?;
+            let resp = match self
+                .get_events_retrying(&start, contract_ids)
+                .await
+            {
+                Ok(resp) => resp,
+                // Cursor sits past the chain tip: we resumed one ledger beyond
+                // the last one we saw and none has closed since (or we failed
+                // over to a lagging node). RPC rejects the range, but there is
+                // nothing to fetch — hold the cursor for the next poll. Only
+                // the first request of a batch starts from a ledger; a paging
+                // cursor cannot be out of range.
+                Err(e) => {
+                    let tip = match start {
+                        EventStart::Ledger(_) => {
+                            rejected_above_tip(&e.to_string(), start_ledger)
+                        }
+                        _ => None,
+                    };
+                    let Some(tip) = tip else { return Err(e) };
+                    if start_ledger > tip + 1 {
+                        warn!(
+                            "[event_source] cursor {start_ledger} is {} ledgers \
+                             ahead of chain tip {tip}; holding until it catches \
+                             up",
+                            start_ledger - tip
+                        );
+                    } else {
+                        debug!(
+                            "[event_source] at chain tip {tip}; no new ledger \
+                             to fetch"
+                        );
+                    }
+                    return Ok(start_ledger);
+                }
+            };
             latest_ledger = resp.latest_ledger as i32;
             let page_len = resp.events.len();
             for e in &resp.events {
@@ -371,5 +417,20 @@ mod tests {
             "ErrorObject { code: InvalidRequest, message: \"startLedger must \
              be within the ledger range: 3276662 - 3397621\", data: None }"
         ));
+    }
+
+    #[test]
+    fn separates_above_tip_from_below_retention_rejections() {
+        // Mainnet: tailing resumed at tip+1 (63888705) before the next ledger
+        // closed; benign, so the tip is reported instead of an error.
+        let err = "getEvents failed: ErrorObject { code: InvalidRequest, \
+                   message: \"startLedger must be within the ledger range: \
+                   63767745 - 63888704\", data: None }";
+        assert_eq!(rejected_above_tip(err, 63_888_705), Some(63_888_704));
+        // Cursor inside the window or below the floor is not an above-tip case:
+        // the floor path must keep surfacing to the event loop.
+        assert_eq!(rejected_above_tip(err, 63_888_704), None);
+        assert_eq!(rejected_above_tip(err, 63_000_000), None);
+        assert_eq!(rejected_above_tip("connection reset", 1), None);
     }
 }
