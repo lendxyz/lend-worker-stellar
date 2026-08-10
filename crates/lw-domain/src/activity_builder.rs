@@ -9,12 +9,29 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 use uuid::Uuid;
 
-use lw_config::types::ContractEvent;
+use lw_config::{config, types::ContractEvent};
 
 use crate::activity_model::{Activity, ActivityBuilder, ActivityEventType};
 
 fn op_uuid(fopid_to_opid: &HashMap<i32, Uuid>, op_id: u32) -> Option<Uuid> {
     fopid_to_opid.get(&(op_id as i32)).copied()
+}
+
+/// Stellar mainnet USDC carries 7 decimals on-chain; activity rows store USDC
+/// with 6. Shift one decimal place down, truncating the extra digit so a stored
+/// amount never exceeds what actually moved. USDC only: shares, op tokens and
+/// EUR amounts are persisted exactly as emitted.
+fn usdc_to_db_units(chain_amount: i128) -> i128 {
+    if chain_amount <= 0 {
+        return 0;
+    }
+
+    // TODO: remove this when testnet factory is upgraded
+    if config::get_app_env() == config::AppEnv::Production {
+        return chain_amount / 10;
+    }
+
+    chain_amount
 }
 
 /// Build activities for an I/O-free event. `None` = no activity (filtered test
@@ -90,7 +107,7 @@ pub fn build_activity(
                     .user_address(Some(investor))
                     .data(json!({
                         "tx_hash": tx_hash,
-                        "usdc_amount": usdc_amount.to_string(),
+                        "usdc_amount": usdc_to_db_units(usdc_amount).to_string(),
                         "shares_bought": shares_bought.to_string()
                     }))
                     .build(),
@@ -137,7 +154,7 @@ pub fn build_activity(
                     .user_address(Some(investor))
                     .data(json!({
                         "tx_hash": tx_hash,
-                        "usdc_amount": usdc_amount.to_string(),
+                        "usdc_amount": usdc_to_db_units(usdc_amount).to_string(),
                         "shares_refunded": shares_refunded.to_string()
                     }))
                     .build(),
@@ -212,7 +229,7 @@ pub fn build_activity(
                 .user_address(Some(user))
                 .data(json!({
                     "tx_hash": tx_hash,
-                    "usdc_amount": balance.to_string(),
+                    "usdc_amount": usdc_to_db_units(balance).to_string(),
                 }))
                 .build(),
             ])
@@ -234,7 +251,7 @@ pub fn build_activity(
                 .factory_op_id(op_id as i32)
                 .data(json!({
                     "tx_hash": tx_hash,
-                    "usdc_amount": amount.to_string(),
+                    "usdc_amount": usdc_to_db_units(amount).to_string(),
                     "epoch": epoch.to_string(),
                     "op_id": op_id as i32,
                 }))
@@ -295,7 +312,51 @@ mod tests {
         assert_eq!(out[0].event_type, ActivityEventType::Invested);
         assert_eq!(out[0].factory_op_id, 3);
         assert_eq!(out[0].user_address.as_deref(), Some("GINV"));
-        assert_eq!(out[0].data["usdc_amount"], "1000");
+        assert_eq!(out[0].data["usdc_amount"], "100");
+        assert_eq!(out[0].data["shares_bought"], "50");
+    }
+
+    #[test]
+    fn refunded_shifts_usdc_but_not_shares() {
+        let ev = ContractEvent::Refunded {
+            investor: "GINV".into(),
+            operation_id: 3,
+            usdc_amount: 12_345_678,
+            shares_refunded: 12_345_678,
+        };
+        let out = build_activity(&map(3), ev, "tx#0", 12, chrono::Utc::now())
+            .expect("some");
+        assert_eq!(out[0].data["usdc_amount"], "1234567");
+        assert_eq!(out[0].data["shares_refunded"], "12345678");
+    }
+
+    #[test]
+    fn rewards_usdc_is_shifted() {
+        let claimed = ContractEvent::ClaimedRewards {
+            op_id: 3,
+            user: "GUSR".into(),
+            balance: 5_000_009,
+        };
+        let out =
+            build_activity(&map(3), claimed, "tx#0", 12, chrono::Utc::now())
+                .expect("some");
+        // Sub-unit digit is dropped, never rounded up.
+        assert_eq!(out[0].data["usdc_amount"], "500000");
+
+        let distributed = ContractEvent::RewardsDistributed {
+            op_id: 3,
+            epoch: 4,
+            amount: 70,
+        };
+        let out = build_activity(
+            &map(3),
+            distributed,
+            "tx#0",
+            12,
+            chrono::Utc::now(),
+        )
+        .expect("some");
+        assert_eq!(out[0].data["usdc_amount"], "7");
     }
 
     #[test]
