@@ -30,7 +30,7 @@ pub trait OperationStore: Send + Sync {
         &self,
         updates: &HashMap<i32, ActivityEventType>,
     ) -> Result<PgQueryResult, Error>;
-    async fn update_operation_total_shares(
+    async fn add_first_chain(
         &self,
         op_id: i32,
         data: serde_json::Value,
@@ -244,6 +244,10 @@ impl OperationStore for PgOperationStore {
                 updated_at = d.updated_at
             FROM data d
             WHERE o.factory_op_id = d.factory_op_id
+            AND (
+                d.funding_status <> 'finished'::funding_status
+                OR o.shares_sold::NUMERIC = o.total_shares::NUMERIC
+            )
         "#;
 
         let res = sqlx::query(sql)
@@ -266,7 +270,7 @@ impl OperationStore for PgOperationStore {
         Ok(res)
     }
 
-    async fn update_operation_total_shares(
+    async fn add_first_chain(
         &self,
         op_id: i32,
         d: serde_json::Value,
@@ -275,7 +279,7 @@ impl OperationStore for PgOperationStore {
             Ok(data) => data,
             Err(err) => {
                 error!(
-                    "[OpRepository::update_operation_total_shares] Failed to deserialize OpCreatedEventData: {err:?}"
+                    "[OpRepository::add_first_chain] Failed to deserialize OpCreatedEventData: {err:?}"
                 );
                 return Err(Error::Protocol(err.to_string()));
             }

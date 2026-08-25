@@ -140,7 +140,7 @@ impl OperationStore for FakeOperationStore {
     ) -> Result<PgQueryResult, Error> {
         Ok(PgQueryResult::default())
     }
-    async fn update_operation_total_shares(
+    async fn add_first_chain(
         &self,
         op_id: i32,
         data: serde_json::Value,

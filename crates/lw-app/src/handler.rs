@@ -301,7 +301,7 @@ impl Handler {
                 if let ActivityEventType::OpCreated = event.event_type {
                     if let Err(err) = self
                         .operations
-                        .update_operation_total_shares(
+                        .add_first_chain(
                             event.factory_op_id,
                             event.data.clone(),
                         )
