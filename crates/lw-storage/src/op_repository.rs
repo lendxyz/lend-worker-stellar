@@ -283,22 +283,16 @@ impl OperationStore for PgOperationStore {
 
         let sql = r#"
             UPDATE operations
-            SET supported_chains = COALESCE(supported_chains, '[]'::JSONB)
-                    || jsonb_build_object(
-                        'op_token', $1::TEXT,
-                        'chain_id', $2::INT,
-                        'lz_endpoint_id', 0,
-                        'primary', NOT (
-                            COALESCE(supported_chains, '[]'::JSONB)
-                                @> '[{"primary": true}]'::JSONB
-                        )
-                    ),
-                stellar_shares = $3,
-                total_shares = (
-                    COALESCE(NULLIF(total_shares, ''), '0')::NUMERIC
-                        + $3::NUMERIC
-                )::TEXT
-            WHERE factory_op_id = $4
+            SET supported_chains = COALESCE(supported_chains, '[]'::JSONB) || jsonb_build_object(
+                'op_token', $1::TEXT,
+                'chain_id', $2::INT,
+                'lz_endpoint_id', 0,
+                'primary', NOT (
+                    COALESCE(supported_chains, '[]'::JSONB)
+                        @> '[{"primary": true}]'::JSONB
+                )
+            )
+            WHERE factory_op_id = $3
             AND NOT (
                 COALESCE(supported_chains, '[]'::JSONB) @> jsonb_build_array(
                     jsonb_build_object(
@@ -312,7 +306,6 @@ impl OperationStore for PgOperationStore {
         sqlx::query(sql)
             .bind(data.op_token.as_str())
             .bind(STELLAR_CHAIN_ID)
-            .bind(data.total_shares.as_str())
             .bind(op_id)
             .execute(self.db.pool())
             .await
