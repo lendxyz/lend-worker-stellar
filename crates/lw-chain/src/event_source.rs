@@ -337,16 +337,13 @@ pub struct BackfillSource {
 }
 
 impl BackfillSource {
-    /// Build from `BACKFILL_SOURCE_URL`; falls back to the live RPC url when unset.
-    pub fn from_config(max_span: i32) -> eyre::Result<Self> {
-        let cfg = lw_config::config::get_config();
-        let url = if cfg.backfill_source_url.is_empty() {
-            cfg.soroban_rpc_url
-        } else {
-            cfg.backfill_source_url
-        };
+    /// Build against `url`, which MAY be the live RPC: an endpoint still serves
+    /// the retention window the tail has scrolled past. When a gap outruns even
+    /// that window the fetch fails with an out-of-range rejection, and the
+    /// caller skips the gap rather than re-issuing the doomed request.
+    pub fn new(url: &str, max_span: i32) -> eyre::Result<Self> {
         let client =
-            Client::new(&url).map_err(|e| eyre!("backfill client: {e}"))?;
+            Client::new(url).map_err(|e| eyre!("backfill client: {e}"))?;
         Ok(Self {
             inner: RpcEventSource::new(client),
             max_span,
