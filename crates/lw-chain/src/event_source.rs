@@ -328,19 +328,19 @@ impl EventSource for RpcEventSource {
     }
 }
 
-/// Backfill source for history older than the live RPC retention window. Reads
-/// the same `getEvents` shape from a (possibly different) extended-retention
-/// endpoint, bounded to `[start_ledger, start_ledger + max_span]`.
+/// Fallback replay over `getEvents`, used when Hubble is unavailable (no GCP
+/// credentials, or no billing project configured).
+///
+/// Bounded by whatever retention the endpoint offers, so it cannot reach a gap
+/// older than that window — the caller must treat its out-of-range rejection as
+/// "unreachable, skip", never as "retry". `url` MAY be the live RPC: that node
+/// still serves the window the tail has scrolled past.
 pub struct BackfillSource {
     inner: RpcEventSource,
     max_span: i32,
 }
 
 impl BackfillSource {
-    /// Build against `url`, which MAY be the live RPC: an endpoint still serves
-    /// the retention window the tail has scrolled past. When a gap outruns even
-    /// that window the fetch fails with an out-of-range rejection, and the
-    /// caller skips the gap rather than re-issuing the doomed request.
     pub fn new(url: &str, max_span: i32) -> eyre::Result<Self> {
         let client =
             Client::new(url).map_err(|e| eyre!("backfill client: {e}"))?;
@@ -360,7 +360,7 @@ impl EventSource for BackfillSource {
     ) -> eyre::Result<(Vec<RawSorobanEvent>, i32)> {
         let (mut events, next) =
             self.inner.fetch(start_ledger, contract_ids).await?;
-        let ceiling = start_ledger + self.max_span;
+        let ceiling = start_ledger.saturating_add(self.max_span);
         events.retain(|e| e.ledger_seq <= ceiling);
         Ok((events, next.min(ceiling + 1)))
     }
