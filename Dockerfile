@@ -1,4 +1,4 @@
-FROM rust:1.88-slim-bullseye
+FROM rust:1.88-slim-bookworm
 
 WORKDIR /app
 
