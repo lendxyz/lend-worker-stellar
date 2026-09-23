@@ -326,12 +326,12 @@ impl Handler {
                         event.data.clone(),
                     ) {
                         Ok(edata) => {
-                            let fiat_safe = get_config().fiat_safe_address;
+                            let oplend_wallet = get_config().oplend_wallet;
                             let user =
                                 event.user_address.clone().unwrap_or_default();
-                            if !fiat_safe.is_empty()
-                                && edata.op_lend_holder == fiat_safe
-                                && user != fiat_safe
+                            if !oplend_wallet.is_empty()
+                                && edata.op_lend_holder == oplend_wallet
+                                && user != oplend_wallet
                                 && !user.is_empty()
                             {
                                 let fiat_holding = FiatHolding::new(

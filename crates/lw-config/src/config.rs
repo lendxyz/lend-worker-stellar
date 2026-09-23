@@ -1,3 +1,5 @@
+use std::ptr::hash;
+
 use once_cell::sync::Lazy;
 
 pub static ENV: Lazy<LocalEnv> = Lazy::new(LocalEnv::new);
@@ -44,7 +46,7 @@ pub struct LocalEnv {
     pub health_check_url: String,
     pub factory_contract_id: String,
     pub rewards_contract_id: String,
-    pub fiat_safe_address: String,
+    pub oplend_wallet: String,
     pub soroban_rpc_url: String,
     /// GCP project billed for Hubble queries; the reader pays for scanned
     /// bytes, not SDF. Empty disables below-retention replay.
@@ -83,12 +85,19 @@ impl AppEnv {
 
 impl LocalEnv {
     pub fn new() -> Self {
+        let mut oplend_wallet =
+            "CACWIITWTXV47Z5EGVCE73HO5JEZENPZZFKQYPCZDWLNB5TF6RJ44CBI";
+        if !is_production() {
+            oplend_wallet =
+                "CBUIDJMBY4FUBXVD24ZBO2PABJDEH3PYMPCR7VYI7NLARN4DN5EN2FL3";
+        }
+
         LocalEnv {
             db_url: get_env("DATABASE_URL"),
             health_check_url: get_env("HEALTH_CHECK_URL"),
             factory_contract_id: get_env("FACTORY_CONTRACT_ID"),
             rewards_contract_id: get_env("REWARDS_CONTRACT_ID"),
-            fiat_safe_address: get_env("FIAT_SAFE_ADDRESS"),
+            oplend_wallet: oplend_wallet.to_string(),
             soroban_rpc_url: get_env_or(
                 "SOROBAN_RPC_URL",
                 "https://soroban-testnet.stellar.org",
