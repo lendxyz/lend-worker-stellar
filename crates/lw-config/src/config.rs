@@ -83,12 +83,12 @@ impl AppEnv {
 
 impl LocalEnv {
     pub fn new() -> Self {
-        let mut oplend_wallet =
-            "CACWIITWTXV47Z5EGVCE73HO5JEZENPZZFKQYPCZDWLNB5TF6RJ44CBI";
-        if !is_production() {
-            oplend_wallet =
-                "CBUIDJMBY4FUBXVD24ZBO2PABJDEH3PYMPCR7VYI7NLARN4DN5EN2FL3";
-        }
+        let env = AppEnv::get_env_value();
+        let oplend_wallet = if env == AppEnv::Production {
+            "CACWIITWTXV47Z5EGVCE73HO5JEZENPZZFKQYPCZDWLNB5TF6RJ44CBI"
+        } else {
+            "CBUIDJMBY4FUBXVD24ZBO2PABJDEH3PYMPCR7VYI7NLARN4DN5EN2FL3"
+        };
 
         LocalEnv {
             db_url: get_env("DATABASE_URL"),
@@ -117,7 +117,7 @@ impl LocalEnv {
                 .parse()
                 .unwrap_or(5_000),
             chain_id: STELLAR_CHAIN_ID,
-            env: AppEnv::get_env_value(),
+            env,
         }
     }
 }
