@@ -1,5 +1,3 @@
-use std::ptr::hash;
-
 use once_cell::sync::Lazy;
 
 pub static ENV: Lazy<LocalEnv> = Lazy::new(LocalEnv::new);
