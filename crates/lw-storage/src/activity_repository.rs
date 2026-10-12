@@ -191,7 +191,8 @@ impl ActivityStore for PgActivityStore {
                 'op_resumed',
                 'op_started',
                 'op_canceled',
-                'op_finished'
+                'op_finished',
+                'funding_withdrawn'
             )
         "#;
 

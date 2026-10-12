@@ -1,3 +1,6 @@
+[config]
+default_to_workspace = false
+
 [tasks.set-nightly]
 command = "rustup"
 args = ["override", "set", "nightly"]
@@ -8,19 +11,26 @@ args = ["override", "set", "stable"]
 
 [tasks.lint]
 command = "cargo"
-args = ["clippy", "--all-features"]
+args = ["clippy", "--workspace", "--all-targets", "--all-features"]
 
 [tasks.fix]
 command = "cargo"
-args = ["clippy", "--fix", "--lib", "-p", "lend_worker_stellar", "--allow-staged", "--allow-dirty"]
+args = [
+    "clippy",
+    "--fix",
+    "--lib",
+    "-p",
+    "lend_worker_stellar",
+    "--allow-staged",
+    "--allow-dirty",
+]
 
 [tasks.fix-force]
-command = "cargo"
-args = ["clippy", "--fix", "--lib", "-p", "lend_worker_stellar", "--allow-staged", "--allow-dirty"]
+extend = "fix"
 
 [tasks.fmt]
 command = "cargo"
-args = ["fmt"]
+args = ["fmt", "--all"]
 
 [tasks.sanitize]
 dependencies = ["fmt", "fix", "lint"]
@@ -38,6 +48,3 @@ args = ["./target/maxperf/lend_worker_stellar", "./lend_worker_stellar"]
 
 [tasks.release]
 dependencies = ["build-release", "copy"]
-
-[tasks.contracts]
-command = "./build_contracts.sh"

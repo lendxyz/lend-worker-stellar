@@ -38,6 +38,7 @@ pub enum ActivityEventType {
     RestitutionOpened,
     RestitutionClaimed,
     RestitutionClosed,
+    FundingWithdrawn,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

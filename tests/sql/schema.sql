@@ -44,7 +44,8 @@ CREATE TYPE activity_event_type AS ENUM (
     'claimed_op_token', 'rewards_distributed', 'op_lend_bridged',
     'op_lend_peer_added', 'op_paused', 'op_resumed', 'op_predeposits_open',
     'op_predeposits_closed', 'op_created', 'op_started', 'op_canceled',
-    'op_finished', 'order_filled', 'order_cancelled', 'op_lend_transfered'
+    'op_finished', 'order_filled', 'order_cancelled', 'op_lend_transfered',
+    'funding_withdrawn'
 );
 
 CREATE TYPE order_status AS ENUM ('filled', 'open', 'cancelled');

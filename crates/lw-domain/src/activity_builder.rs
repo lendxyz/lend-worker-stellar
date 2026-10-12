@@ -184,6 +184,21 @@ pub fn build_activity(
                     .build(),
             ])
         }
+        ContractEvent::FundingWithdrawn {
+            operation_id,
+            usdc_amount,
+        } => {
+            let op_id = op_uuid(fopid_to_opid, operation_id)?;
+            Some(vec![
+                ActivityBuilder::new(ActivityEventType::FundingWithdrawn, block_number)
+                    .block_timestamp(block_timestamp)
+                    .event_hash(format!("{tx_hash}#lend_funding_withdrawn"))
+                    .op_id(op_id)
+                    .factory_op_id(operation_id as i32)
+                    .data(json!({ "tx_hash": tx_hash, "usdc_amount": usdc_amount.to_string(), "eurc_amount": 0 }))
+                    .build(),
+            ])
+        }
         ContractEvent::OpCanceled { operation_id } => simple_lifecycle(
             fopid_to_opid,
             operation_id,
