@@ -127,6 +127,16 @@ golden!(
 );
 
 golden!(
+    funding_withdrawn,
+    factory_contract(),
+    raw_event(
+        vec![sym("funding_withdrawn"), u32v(FOP as u32)],
+        data_map(&[("usdc_amount", i128v(500_000_000))]),
+        FACTORY
+    )
+);
+
+golden!(
     predeposits_open,
     factory_contract(),
     raw_event(

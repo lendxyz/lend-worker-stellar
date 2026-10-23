@@ -44,9 +44,20 @@ pub struct LocalEnv {
     pub health_check_url: String,
     pub factory_contract_id: String,
     pub rewards_contract_id: String,
-    pub fiat_safe_address: String,
+    pub oplend_wallet: String,
     pub soroban_rpc_url: String,
+    /// GCP project billed for Hubble queries; the reader pays for scanned
+    /// bytes, not SDF. Empty disables below-retention replay.
+    pub hubble_billing_project: String,
+    /// Fully-qualified BigQuery dataset holding Hubble's tables.
+    pub hubble_dataset: String,
+    /// Maximum ledgers replayed per Hubble sweep.
+    pub hubble_max_span: i32,
+    /// RPC endpoint used to replay history when Hubble is unavailable. Bounded
+    /// by that endpoint's retention, so it cannot cover a deeper gap. Empty
+    /// leaves no replay source at all.
     pub backfill_source_url: String,
+    /// Maximum ledgers replayed per RPC-fallback sweep.
     pub backfill_max_span: i32,
     pub start_ledger: i32,
     pub poll_interval_ms: u64,
@@ -72,16 +83,31 @@ impl AppEnv {
 
 impl LocalEnv {
     pub fn new() -> Self {
+        let env = AppEnv::get_env_value();
+        let oplend_wallet = if env == AppEnv::Production {
+            "CACWIITWTXV47Z5EGVCE73HO5JEZENPZZFKQYPCZDWLNB5TF6RJ44CBI"
+        } else {
+            "CBUIDJMBY4FUBXVD24ZBO2PABJDEH3PYMPCR7VYI7NLARN4DN5EN2FL3"
+        };
+
         LocalEnv {
             db_url: get_env("DATABASE_URL"),
             health_check_url: get_env("HEALTH_CHECK_URL"),
             factory_contract_id: get_env("FACTORY_CONTRACT_ID"),
             rewards_contract_id: get_env("REWARDS_CONTRACT_ID"),
-            fiat_safe_address: get_env("FIAT_SAFE_ADDRESS"),
+            oplend_wallet: oplend_wallet.to_string(),
             soroban_rpc_url: get_env_or(
                 "SOROBAN_RPC_URL",
                 "https://soroban-testnet.stellar.org",
             ),
+            hubble_billing_project: get_env("HUBBLE_BILLING_PROJECT"),
+            hubble_dataset: get_env_or(
+                "HUBBLE_DATASET",
+                "crypto-stellar.crypto_stellar",
+            ),
+            hubble_max_span: get_env("HUBBLE_MAX_SPAN")
+                .parse()
+                .unwrap_or(120_000),
             backfill_source_url: get_env("BACKFILL_SOURCE_URL"),
             backfill_max_span: get_env("BACKFILL_MAX_SPAN")
                 .parse()
@@ -91,7 +117,7 @@ impl LocalEnv {
                 .parse()
                 .unwrap_or(5_000),
             chain_id: STELLAR_CHAIN_ID,
-            env: AppEnv::get_env_value(),
+            env,
         }
     }
 }

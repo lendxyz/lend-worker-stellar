@@ -1,5 +1,5 @@
 //! Handler orchestration: `process_events` persists activities and, for an
-//! `OperationCreated`, drives `update_operation_total_shares` — the path that
+//! `OperationCreated`, drives `add_first_chain` — the path that
 //! seeds `operations.supported_chains` with the new OpLend token so the indexer
 //! discovers and starts observing it.
 
@@ -33,7 +33,7 @@ fn op_created_activity() -> lend_worker_stellar::models::activity_model::Activit
 }
 
 #[tokio::test]
-async fn op_created_persists_activity_and_seeds_total_shares() {
+async fn op_created_persists_activity_and_records_deployment() {
     let activity = Arc::new(FakeActivityStore::default());
     // unfinished must be non-empty for the OpCreated branch in sync_op_status to run.
     let operations = Arc::new(FakeOperationStore {
@@ -59,14 +59,10 @@ async fn op_created_persists_activity_and_seeds_total_shares() {
     assert_eq!(inserted[0].event_type, ActivityEventType::OpCreated);
     assert_eq!(inserted[0].chain_id, 0);
 
-    // OperationCreated seeded total_shares + supported_chains (the OpLend
-    // discovery path): update_operation_total_shares was called with the token.
+    // OperationCreated records the Stellar deployment in supported_chains (the
+    // OpLend discovery path): add_first_chain got the token.
     let calls = operations.total_shares_calls.lock().unwrap();
-    assert_eq!(
-        calls.len(),
-        1,
-        "expected one update_operation_total_shares call"
-    );
+    assert_eq!(calls.len(), 1, "expected one add_first_chain call");
     let (fop, data) = &calls[0];
     assert_eq!(*fop, FOP);
     assert_eq!(

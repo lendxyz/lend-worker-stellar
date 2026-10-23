@@ -13,7 +13,7 @@ expression: out
     "block_number": 12345,
     "data": {
       "tx_hash": "deadbeef#0",
-      "usdc_amount": "500"
+      "usdc_amount": "50"
     },
     "created_at": "2023-11-14T22:13:20Z"
   }

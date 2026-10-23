@@ -26,6 +26,10 @@ pub enum ContractEvent {
         operation_id: u32,
         amount_raised_euro: i128,
     },
+    FundingWithdrawn {
+        operation_id: u32,
+        usdc_amount: i128,
+    },
     OpPredepositsOpen {
         operation_id: u32,
     },

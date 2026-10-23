@@ -57,6 +57,13 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 "amount_raised_euro",
             )?)?,
         }),
+        "funding_withdrawn" => Ok(ContractEvent::FundingWithdrawn {
+            operation_id: as_u32(tg(1)?)?,
+            usdc_amount: as_i128(map_field(
+                as_map(&raw.value)?,
+                "usdc_amount",
+            )?)?,
+        }),
         "predeposits_open" => Ok(ContractEvent::OpPredepositsOpen {
             operation_id: as_u32(tg(1)?)?,
         }),

@@ -14,7 +14,7 @@ expression: out
     "data": {
       "shares_bought": "50",
       "tx_hash": "deadbeef#0",
-      "usdc_amount": "1000"
+      "usdc_amount": "100"
     },
     "created_at": "2023-11-14T22:13:20Z"
   }
