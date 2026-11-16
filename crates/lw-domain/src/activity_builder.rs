@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 use uuid::Uuid;
 
-use lw_config::{config, types::ContractEvent};
+use lw_config::types::ContractEvent;
 
 use crate::activity_model::{Activity, ActivityBuilder, ActivityEventType};
 
@@ -25,13 +25,7 @@ fn usdc_to_db_units(chain_amount: i128) -> i128 {
     if chain_amount <= 0 {
         return 0;
     }
-
-    // TODO: remove this when testnet factory is upgraded
-    if config::get_app_env() == config::AppEnv::Production {
-        return chain_amount / 10;
-    }
-
-    chain_amount
+    chain_amount / 10
 }
 
 /// Build activities for an I/O-free event. `None` = no activity (filtered test
