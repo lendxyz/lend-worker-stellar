@@ -137,26 +137,6 @@ golden!(
 );
 
 golden!(
-    predeposits_open,
-    factory_contract(),
-    raw_event(
-        vec![sym("predeposits_open"), u32v(FOP as u32)],
-        data_map(&[]),
-        FACTORY
-    )
-);
-
-golden!(
-    predeposits_closed,
-    factory_contract(),
-    raw_event(
-        vec![sym("predeposits_closed"), u32v(FOP as u32)],
-        data_map(&[]),
-        FACTORY
-    )
-);
-
-golden!(
     invested,
     factory_contract(),
     raw_event(
@@ -180,16 +160,6 @@ golden!(
             u32v(FOP as u32)
         ],
         data_map(&[("shares_bought", i128v(50))]),
-        FACTORY
-    )
-);
-
-golden!(
-    claimed_op_token,
-    factory_contract(),
-    raw_event(
-        vec![sym("claimed_op_token"), addr(ACCOUNT_A), u32v(FOP as u32)],
-        data_map(&[("amount", i128v(50))]),
         FACTORY
     )
 );
@@ -244,17 +214,43 @@ golden!(
     )
 );
 
-/// A deferred/unindexed event (`Gifted`) decodes to nothing.
+/// Deprecated predeposit / OpLend-gifting events are no longer indexed and must
+/// decode to nothing, even when well-formed.
 #[tokio::test]
-async fn gifted_is_unindexed() {
-    let raw = raw_event(
-        vec![sym("gifted"), addr(ACCOUNT_A), u32v(FOP as u32)],
-        data_map(&[("usdc_amount", i128v(1)), ("shares_bought", i128v(1))]),
-        FACTORY,
-    );
-    let out = run(&factory_contract(), &raw).await;
-    assert!(
-        out.is_none(),
-        "Gifted must not produce activities, got {out:?}"
-    );
+async fn deprecated_events_are_unindexed() {
+    let cases = [
+        raw_event(
+            vec![sym("gifted"), addr(ACCOUNT_A), u32v(FOP as u32)],
+            data_map(&[("usdc_amount", i128v(1)), ("shares_bought", i128v(1))]),
+            FACTORY,
+        ),
+        raw_event(
+            vec![sym("claimed_op_token"), addr(ACCOUNT_A), u32v(FOP as u32)],
+            data_map(&[("amount", i128v(50))]),
+            FACTORY,
+        ),
+        raw_event(
+            vec![sym("predeposit"), addr(ACCOUNT_A), u32v(FOP as u32)],
+            data_map(&[("usdc_amount", i128v(1))]),
+            FACTORY,
+        ),
+        raw_event(
+            vec![sym("predeposits_open"), u32v(FOP as u32)],
+            data_map(&[]),
+            FACTORY,
+        ),
+        raw_event(
+            vec![sym("predeposits_closed"), u32v(FOP as u32)],
+            data_map(&[]),
+            FACTORY,
+        ),
+    ];
+    for raw in &cases {
+        let out = run(&factory_contract(), raw).await;
+        assert!(
+            out.is_none(),
+            "{:?} must not produce activities, got {out:?}",
+            raw.topics[0]
+        );
+    }
 }

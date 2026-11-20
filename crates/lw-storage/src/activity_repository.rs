@@ -183,9 +183,6 @@ impl ActivityStore for PgActivityStore {
                 'invested_fiat',
                 'refunded',
                 'op_lend_peer_added',
-                'op_predeposits_open',
-                'op_predeposits_closed',
-                'claimed_op_token',
                 'op_created',
                 'op_paused',
                 'op_resumed',
@@ -339,7 +336,6 @@ impl ActivityStore for PgActivityStore {
             WHERE factory_op_id = ANY($1::INT[])
             AND event_type IN (
                 'op_created',
-                'op_predeposits_open',
                 'op_paused',
                 'op_resumed',
                 'op_canceled',

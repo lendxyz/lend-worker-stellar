@@ -38,53 +38,6 @@ pub fn build_activity(
     block_timestamp: DateTime<Utc>,
 ) -> Option<Vec<Activity>> {
     match event {
-        ContractEvent::ClaimedTokens {
-            investor,
-            operation_id,
-            amount,
-        } => {
-            let op_id = op_uuid(fopid_to_opid, operation_id)?;
-            Some(vec![
-                ActivityBuilder::new(ActivityEventType::ClaimedOpToken, block_number)
-                    .block_timestamp(block_timestamp)
-                    .event_hash(format!("{tx_hash}#lend_op_tokens_claimed"))
-                    .op_id(op_id)
-                    .factory_op_id(operation_id as i32)
-                    .user_address(Some(investor))
-                    .data(json!({ "tx_hash": tx_hash, "token_amount": amount.to_string() }))
-                    .build(),
-            ])
-        }
-        ContractEvent::OpPredepositsOpen { operation_id } => {
-            let op_id = op_uuid(fopid_to_opid, operation_id)?;
-            Some(vec![
-                ActivityBuilder::new(
-                    ActivityEventType::OpPredepositsOpen,
-                    block_number,
-                )
-                .block_timestamp(block_timestamp)
-                .event_hash(format!("{tx_hash}#lend_op_predeposits_open"))
-                .op_id(op_id)
-                .factory_op_id(operation_id as i32)
-                .data(json!({ "tx_hash": tx_hash }))
-                .build(),
-            ])
-        }
-        ContractEvent::OpPredepositsClosed { operation_id } => {
-            let op_id = op_uuid(fopid_to_opid, operation_id)?;
-            Some(vec![
-                ActivityBuilder::new(
-                    ActivityEventType::OpPredepositsClosed,
-                    block_number,
-                )
-                .block_timestamp(block_timestamp)
-                .event_hash(format!("{tx_hash}#lend_op_predeposits_closed"))
-                .op_id(op_id)
-                .factory_op_id(operation_id as i32)
-                .data(json!({ "tx_hash": tx_hash }))
-                .build(),
-            ])
-        }
         ContractEvent::Invested {
             investor,
             operation_id,

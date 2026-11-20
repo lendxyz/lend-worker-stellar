@@ -64,12 +64,6 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 "usdc_amount",
             )?)?,
         }),
-        "predeposits_open" => Ok(ContractEvent::OpPredepositsOpen {
-            operation_id: as_u32(tg(1)?)?,
-        }),
-        "predeposits_closed" => Ok(ContractEvent::OpPredepositsClosed {
-            operation_id: as_u32(tg(1)?)?,
-        }),
         "invested" => {
             let m = as_map(&raw.value)?;
             Ok(ContractEvent::Invested {
@@ -87,11 +81,6 @@ pub fn decode_event(raw: &RawSorobanEvent) -> eyre::Result<ContractEvent> {
                 as_map(&raw.value)?,
                 "shares_bought",
             )?)?,
-        }),
-        "claimed_op_token" => Ok(ContractEvent::ClaimedTokens {
-            investor: as_address(tg(1)?)?,
-            operation_id: as_u32(tg(2)?)?,
-            amount: as_i128(map_field(as_map(&raw.value)?, "amount")?)?,
         }),
         "refunded" => {
             let m = as_map(&raw.value)?;

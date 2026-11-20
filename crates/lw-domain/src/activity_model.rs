@@ -19,14 +19,11 @@ pub enum ActivityEventType {
     Refunded,
     ClaimedRewards,
     ClaimedRefRewards,
-    ClaimedOpToken,
     RewardsDistributed,
     RefRewardsDistributed,
     OpLendBridged,
     OpLendTransfered, // singular "r" at transferred because of typo in DB defs :(
     OpLendPeerAdded,
-    OpPredepositsOpen,
-    OpPredepositsClosed,
     OpCreated,
     OpPaused,
     OpResumed,
@@ -60,8 +57,6 @@ pub struct InvestedFiatData {
 pub fn activity_event_priority(event: &ActivityEventType) -> i32 {
     match event {
         ActivityEventType::OpCreated => 1,
-        ActivityEventType::OpPredepositsOpen => 2,
-        ActivityEventType::OpPredepositsClosed => 3,
         ActivityEventType::OpStarted => 4,
         ActivityEventType::OpPaused => 5,
         ActivityEventType::OpResumed => 6,
@@ -77,8 +72,6 @@ pub fn activity_event_to_funding_status(
     match event {
         ActivityEventType::OpCreated => Some(FundingStatus::Upcoming),
         ActivityEventType::OpStarted => Some(FundingStatus::Open),
-        ActivityEventType::OpPredepositsOpen => Some(FundingStatus::Predeposit),
-        ActivityEventType::OpPredepositsClosed => Some(FundingStatus::Upcoming),
         ActivityEventType::OpPaused => Some(FundingStatus::Paused),
         ActivityEventType::OpResumed => Some(FundingStatus::Open),
         ActivityEventType::OpFinished => Some(FundingStatus::Finished),
@@ -96,7 +89,6 @@ pub fn factory_needs_refresh(events: &Vec<Activity>) -> bool {
                 | ActivityEventType::Refunded
                 | ActivityEventType::OpCreated
                 | ActivityEventType::OpStarted
-                | ActivityEventType::OpPredepositsOpen
                 | ActivityEventType::OpPaused
                 | ActivityEventType::OpResumed
                 | ActivityEventType::OpFinished

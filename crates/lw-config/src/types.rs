@@ -30,12 +30,6 @@ pub enum ContractEvent {
         operation_id: u32,
         usdc_amount: i128,
     },
-    OpPredepositsOpen {
-        operation_id: u32,
-    },
-    OpPredepositsClosed {
-        operation_id: u32,
-    },
     Invested {
         investor: String,
         operation_id: u32,
@@ -47,11 +41,6 @@ pub enum ContractEvent {
         oplend_destination: String,
         operation_id: u32,
         shares_bought: i128,
-    },
-    ClaimedTokens {
-        investor: String,
-        operation_id: u32,
-        amount: i128,
     },
     Refunded {
         investor: String,
